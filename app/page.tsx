@@ -71,9 +71,10 @@ export default function HomePage() {
           <span>Pitch Tank</span>
         </a>
         <nav className="nav-links" aria-label="Bereiche">
+          <a href="/account">Account</a>
           <a href="#dashboard">Dashboard</a>
           <a href="#lernpfade">Lernpfade</a>
-          <a href="#sessions">Sessions</a>
+          <a href="/sessions">Sessions</a>
           <a href="#curriculum">Curriculum</a>
         </nav>
       </header>
@@ -169,6 +170,31 @@ export default function HomePage() {
               </div>
             </details>
           ))}
+        </div>
+      </section>
+
+      <section id="sessions" className="sessions-section" aria-labelledby="sessions-title">
+        <div className="section-heading compact-heading">
+          <p className="eyebrow">Sessions</p>
+          <h2 id="sessions-title">Profil zuerst anlegen</h2>
+        </div>
+
+        <div className="dashboard-grid">
+          <article className="dashboard-card">
+            <h3>1. Account erstellen</h3>
+            <p>Lege dein Profil an, damit deine Sessions dir zugeordnet werden.</p>
+            <a href="/account">Jetzt Account erstellen</a>
+          </article>
+          <article className="dashboard-card">
+            <h3>2. Session starten</h3>
+            <p>Starte danach direkt den Track A1 und beginne mit Beobachtungen.</p>
+            <a href="/tracks/a/a1">A1 oeffnen</a>
+          </article>
+          <article className="dashboard-card">
+            <h3>3. Fortschritt sichern</h3>
+            <p>Der Account wird lokal im Browser gespeichert und bei erneutem Besuch geladen.</p>
+            <span>Speicherung aktiv</span>
+          </article>
         </div>
       </section>
 

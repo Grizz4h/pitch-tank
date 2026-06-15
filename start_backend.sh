@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -euo pipefail
-
-echo "Pitch Tank has no backend yet."
+cd /opt/pitch-tank/backend
+exec python3 main.py

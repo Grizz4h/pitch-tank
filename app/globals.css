@@ -408,6 +408,7 @@ h1 {
 
 .dashboard-section,
 .tracks-section,
+.sessions-section,
 .info-section {
   margin-top: 28px;
 }
@@ -1326,5 +1327,220 @@ h1 {
 
   .observation-flow {
     padding: 18px;
+  }
+}
+
+.account-shell {
+  width: min(760px, calc(100% - 40px));
+  margin: 0 auto;
+  padding: 22px 0 64px;
+}
+
+.account-hero,
+.account-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 18px 52px rgba(0, 0, 0, 0.24);
+}
+
+.account-hero {
+  padding: clamp(24px, 4vw, 40px);
+  background:
+    linear-gradient(135deg, rgba(11, 29, 24, 0.95), rgba(5, 10, 15, 0.84)),
+    linear-gradient(90deg, rgba(183, 216, 120, 0.08), transparent 62%);
+}
+
+.account-hero h1 {
+  margin: 0;
+  font-size: clamp(2rem, 6vw, 3.8rem);
+  line-height: 1;
+}
+
+.account-hero p:not(.eyebrow) {
+  margin: 16px 0 0;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.account-card {
+  margin-top: 18px;
+  padding: clamp(20px, 3vw, 28px);
+  background: linear-gradient(180deg, rgba(16, 28, 29, 0.86), rgba(8, 13, 18, 0.9));
+}
+
+.account-card h2 {
+  margin: 0;
+  font-size: clamp(1.35rem, 3vw, 2rem);
+}
+
+.account-message {
+  margin: 14px 0 0;
+  color: var(--lime);
+  font-weight: 800;
+}
+
+.account-summary {
+  margin-top: 16px;
+  padding: 16px;
+  border: 1px solid rgba(183, 216, 120, 0.28);
+  border-radius: 8px;
+  background: rgba(183, 216, 120, 0.06);
+}
+
+.account-summary h3 {
+  margin: 0 0 10px;
+  font-size: 1rem;
+}
+
+.account-summary p {
+  margin: 0 0 8px;
+  color: var(--muted);
+}
+
+.account-summary p:last-child {
+  margin-bottom: 0;
+}
+
+@media (max-width: 720px) {
+  .account-shell {
+    width: min(100% - 24px, 760px);
+    padding-top: 12px;
+  }
+
+  .account-card,
+  .account-hero {
+    padding: 18px;
+  }
+}
+
+.account-required-card,
+.history-profile-card,
+.history-detail {
+  margin-top: 18px;
+  padding: clamp(20px, 3vw, 28px);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgba(16, 28, 29, 0.84), rgba(8, 13, 18, 0.9));
+  box-shadow: 0 18px 52px rgba(0, 0, 0, 0.24);
+}
+
+.account-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.account-error {
+  margin: 16px 0 0;
+  color: #f1b48f;
+  line-height: 1.5;
+}
+
+.history-shell {
+  width: min(1180px, calc(100% - 40px));
+  margin: 0 auto;
+  padding: 22px 0 64px;
+}
+
+.history-profile-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.history-profile-card h2,
+.history-detail h2,
+.account-required-card h2 {
+  margin: 0;
+  line-height: 1.15;
+}
+
+.history-profile-card p:not(.eyebrow),
+.account-required-card p {
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.history-layout {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.42fr) minmax(0, 1fr);
+  gap: 18px;
+  margin-top: 18px;
+  align-items: start;
+}
+
+.history-list {
+  display: grid;
+  gap: 10px;
+}
+
+.history-item {
+  width: 100%;
+  padding: 15px;
+  border: 1px solid rgba(205, 232, 214, 0.14);
+  border-radius: 8px;
+  color: var(--text);
+  background: rgba(238, 246, 239, 0.035);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.history-item.active,
+.history-item:hover {
+  border-color: rgba(183, 216, 120, 0.42);
+  background: rgba(183, 216, 120, 0.07);
+}
+
+.history-item span,
+.history-item small {
+  display: block;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.history-item strong {
+  display: block;
+  margin: 6px 0;
+}
+
+.history-stats {
+  margin-top: 18px;
+}
+
+.history-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 18px 0;
+}
+
+.history-meta span {
+  padding: 8px 10px;
+  border: 1px solid rgba(205, 232, 214, 0.14);
+  border-radius: 999px;
+  color: var(--muted);
+  background: rgba(238, 246, 239, 0.035);
+  font-size: 0.86rem;
+}
+
+.history-log {
+  margin-top: 18px;
+}
+
+@media (max-width: 900px) {
+  .history-shell {
+    width: min(100% - 24px, 760px);
+  }
+
+  .history-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .history-profile-card {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
