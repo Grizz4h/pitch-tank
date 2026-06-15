@@ -1,0 +1,18 @@
+[Unit]
+Description=Pitch Tank Next.js App
+After=network.target
+
+[Service]
+Type=simple
+User=highspeed
+Group=highspeed
+WorkingDirectory=/opt/pitch-tank
+Environment=NODE_ENV=production
+Environment=PORT=9600
+Environment=HOSTNAME=127.0.0.1
+ExecStart=/home/highspeed/.nvm/versions/node/v24.12.0/bin/node .next/standalone/server.js
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

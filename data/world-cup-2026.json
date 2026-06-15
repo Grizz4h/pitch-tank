@@ -1,0 +1,17 @@
+{
+  "competition": "WM 2026",
+  "groups": {
+    "A": ["Mexiko", "Südafrika", "Südkorea", "Tschechien"],
+    "B": ["Kanada", "Bosnien-Herzegowina", "Katar", "Schweiz"],
+    "C": ["Brasilien", "Marokko", "Haiti", "Schottland"],
+    "D": ["USA", "Paraguay", "Australien", "Türkei"],
+    "E": ["Deutschland", "Curaçao", "Elfenbeinküste", "Ecuador"],
+    "F": ["Niederlande", "Japan", "Schweden", "Tunesien"],
+    "G": ["Belgien", "Ägypten", "Iran", "Neuseeland"],
+    "H": ["Spanien", "Kap Verde", "Saudi-Arabien", "Uruguay"],
+    "I": ["Frankreich", "Senegal", "Irak", "Norwegen"],
+    "J": ["Argentinien", "Algerien", "Österreich", "Jordanien"],
+    "K": ["Portugal", "DR Kongo", "Usbekistan", "Kolumbien"],
+    "L": ["England", "Kroatien", "Ghana", "Panama"]
+  }
+}
