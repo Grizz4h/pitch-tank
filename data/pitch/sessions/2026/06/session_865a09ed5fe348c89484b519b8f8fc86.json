@@ -1,0 +1,90 @@
+{
+  "id": "session_865a09ed5fe348c89484b519b8f8fc86",
+  "userId": "user_8ed441749a5843cf85152b0a493a1448",
+  "profileId": "user_christoph",
+  "profileName": "Christoph",
+  "competition": "WM 2026",
+  "teamA": "Belgien",
+  "teamB": "Ägypten",
+  "focusTeam": "Belgien",
+  "focusPerspective": "Team A",
+  "phase": "Gruppenphase Spieltag 1",
+  "track": "A1",
+  "trackTitle": "Anspielbarkeit beobachten",
+  "sessionName": "WM 2026 | Belgien – Ägypten | A1",
+  "sessionStartMatchTime": "00:00",
+  "sessionStartTimestamp": "2026-06-15T19:02:06.309Z",
+  "matchTimeCorrectionSeconds": -1320,
+  "status": "active",
+  "endedAt": null,
+  "createdAt": "2026-06-15T19:02:06+00:00",
+  "updatedAt": "2026-06-15T20:14:36+00:00",
+  "observations": [
+    {
+      "id": "obs_8af2f2c9ff674d9985bd89f8b70077bc",
+      "createdAt": "2026-06-15T19:43:58+00:00",
+      "time": "21:43",
+      "optionCount": "1",
+      "bestOption": "Durchbruch",
+      "played": "Ja",
+      "outcome": "Ballverlust",
+      "matchTime": "41:37",
+      "isInteresting": false
+    },
+    {
+      "id": "obs_8b8b607f6bed47c7a45b79a1d03abe92",
+      "createdAt": "2026-06-15T19:29:22+00:00",
+      "time": "21:29",
+      "optionCount": "2",
+      "bestOption": "Sicherheit",
+      "played": "Ja",
+      "outcome": "Ballbesitz gehalten",
+      "matchTime": "27:05",
+      "isInteresting": false
+    },
+    {
+      "id": "obs_43307ad18f304fedb594c97c4b5d862b",
+      "createdAt": "2026-06-15T19:28:23+00:00",
+      "time": "21:28",
+      "optionCount": "4",
+      "bestOption": "Progression",
+      "played": "Nein",
+      "outcome": "Ballbesitz gehalten",
+      "matchTime": "25:42",
+      "isInteresting": false
+    },
+    {
+      "id": "obs_f98834ecd603451bb1699b928bf24ffd",
+      "createdAt": "2026-06-15T19:23:40+00:00",
+      "time": "21:23",
+      "optionCount": "3",
+      "bestOption": "Seitenwechsel",
+      "played": "Ja",
+      "outcome": "Raumgewinn",
+      "matchTime": "21:21",
+      "isInteresting": false
+    },
+    {
+      "id": "obs_bd7735b38da64717b2a6f7e57bbd00ad",
+      "createdAt": "2026-06-15T19:23:02+00:00",
+      "time": "21:23",
+      "optionCount": "3",
+      "bestOption": "Sicherheit",
+      "played": "Ja",
+      "outcome": "Ballbesitz gehalten",
+      "matchTime": "20:40",
+      "isInteresting": false
+    },
+    {
+      "id": "obs_553ca0a98167447cb4fa1791d6f1af88",
+      "createdAt": "2026-06-15T19:17:36+00:00",
+      "time": "21:17",
+      "optionCount": "3",
+      "bestOption": "Sicherheit",
+      "played": "Ja",
+      "outcome": "Ballbesitz gehalten",
+      "matchTime": "15:07",
+      "isInteresting": false
+    }
+  ]
+}

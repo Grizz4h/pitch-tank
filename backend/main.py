@@ -163,6 +163,9 @@ class SessionCreate(BaseModel):
     sessionName: str
     sessionStartMatchTime: str = "00:00"
     sessionStartTimestamp: str | None = None
+    matchTimeCorrectionSeconds: int = 0
+    isMatchClockPaused: bool = False
+    matchClockPausedSeconds: int | None = None
 
 
 class ObservationCreate(BaseModel):
@@ -173,6 +176,16 @@ class ObservationCreate(BaseModel):
     outcome: str
     matchTime: str = "00:00"
     isInteresting: bool = False
+
+
+class TimelineCorrectionRequest(BaseModel):
+    matchTimeCorrectionSeconds: int | None = None
+    isMatchClockPaused: bool | None = None
+    matchClockPausedSeconds: int | None = None
+
+
+class SessionStatusRequest(BaseModel):
+    status: Literal["completed", "abandoned"]
 
 
 @app.get("/api/health")
@@ -221,6 +234,11 @@ def me(user: dict[str, Any] = Depends(current_user)) -> dict[str, Any]:
 
 @app.post("/api/sessions")
 def create_session(payload: SessionCreate, user: dict[str, Any] = Depends(current_user)) -> dict[str, Any]:
+    for existing_path in iter_session_files():
+        existing_session = read_session_file(existing_path)
+        if existing_session and existing_session.get("userId") == user["id"] and existing_session.get("status", "active") == "active":
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Active session already exists")
+
     created_at = now_iso()
     session = {
         "id": f"session_{uuid.uuid4().hex}",
@@ -238,6 +256,11 @@ def create_session(payload: SessionCreate, user: dict[str, Any] = Depends(curren
         "sessionName": payload.sessionName,
         "sessionStartMatchTime": payload.sessionStartMatchTime,
         "sessionStartTimestamp": payload.sessionStartTimestamp or created_at,
+        "matchTimeCorrectionSeconds": payload.matchTimeCorrectionSeconds,
+        "isMatchClockPaused": payload.isMatchClockPaused,
+        "matchClockPausedSeconds": payload.matchClockPausedSeconds,
+        "status": "active",
+        "endedAt": None,
         "createdAt": created_at,
         "updatedAt": created_at,
         "observations": [],
@@ -262,6 +285,53 @@ def get_session(session_id: str, user: dict[str, Any] = Depends(current_user)) -
     return session
 
 
+
+
+@app.delete("/api/sessions/{session_id}")
+def delete_session(session_id: str, user: dict[str, Any] = Depends(current_user)) -> dict[str, str]:
+    path, _ = find_session(session_id, user)
+    path.unlink()
+    return {"status": "deleted", "id": session_id}
+
+@app.patch("/api/sessions/{session_id}/status")
+def update_session_status(
+    session_id: str,
+    payload: SessionStatusRequest,
+    user: dict[str, Any] = Depends(current_user),
+) -> dict[str, Any]:
+    path, session = find_session(session_id, user)
+    session["status"] = payload.status
+    if payload.status == "abandoned":
+        session["observations"] = []
+    ended_at = now_iso()
+    session["endedAt"] = ended_at
+    session["updatedAt"] = ended_at
+    write_json(path, session)
+    return session
+
+
+@app.patch("/api/sessions/{session_id}/timeline")
+def correct_session_timeline(
+    session_id: str,
+    payload: TimelineCorrectionRequest,
+    user: dict[str, Any] = Depends(current_user),
+) -> dict[str, Any]:
+    path, session = find_session(session_id, user)
+    if session.get("status", "active") != "active":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Session is not active")
+    if payload.matchTimeCorrectionSeconds is not None:
+        session["matchTimeCorrectionSeconds"] = payload.matchTimeCorrectionSeconds
+    if payload.isMatchClockPaused is not None:
+        session["isMatchClockPaused"] = payload.isMatchClockPaused
+    if payload.matchClockPausedSeconds is not None:
+        session["matchClockPausedSeconds"] = max(0, payload.matchClockPausedSeconds)
+    elif payload.isMatchClockPaused is False:
+        session["matchClockPausedSeconds"] = None
+    session["updatedAt"] = now_iso()
+    write_json(path, session)
+    return session
+
+
 @app.post("/api/sessions/{session_id}/observations")
 def add_observation(
     session_id: str,
@@ -269,6 +339,8 @@ def add_observation(
     user: dict[str, Any] = Depends(current_user),
 ) -> dict[str, Any]:
     path, session = find_session(session_id, user)
+    if session.get("status", "active") != "active":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Session is not active")
     observation = {
         "id": f"obs_{uuid.uuid4().hex}",
         "createdAt": now_iso(),
@@ -281,6 +353,60 @@ def add_observation(
         "isInteresting": payload.isInteresting,
     }
     session["observations"] = [observation, *session.get("observations", [])]
+    session["updatedAt"] = now_iso()
+    write_json(path, session)
+    return session
+
+
+@app.patch("/api/sessions/{session_id}/observations/{observation_id}")
+def update_observation(
+    session_id: str,
+    observation_id: str,
+    payload: ObservationCreate,
+    user: dict[str, Any] = Depends(current_user),
+) -> dict[str, Any]:
+    path, session = find_session(session_id, user)
+    if session.get("status", "active") != "active":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Session is not active")
+
+    observations = session.get("observations", [])
+    for index, observation in enumerate(observations):
+        if observation.get("id") == observation_id:
+            observations[index] = {
+                **observation,
+                "updatedAt": now_iso(),
+                "time": payload.time,
+                "optionCount": payload.optionCount,
+                "bestOption": payload.bestOption,
+                "played": payload.played,
+                "outcome": payload.outcome,
+                "matchTime": payload.matchTime,
+                "isInteresting": payload.isInteresting,
+            }
+            session["observations"] = observations
+            session["updatedAt"] = now_iso()
+            write_json(path, session)
+            return session
+
+    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Observation not found")
+
+
+@app.delete("/api/sessions/{session_id}/observations/{observation_id}")
+def delete_observation(
+    session_id: str,
+    observation_id: str,
+    user: dict[str, Any] = Depends(current_user),
+) -> dict[str, Any]:
+    path, session = find_session(session_id, user)
+    if session.get("status", "active") != "active":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Session is not active")
+
+    observations = session.get("observations", [])
+    next_observations = [observation for observation in observations if observation.get("id") != observation_id]
+    if len(next_observations) == len(observations):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Observation not found")
+
+    session["observations"] = next_observations
     session["updatedAt"] = now_iso()
     write_json(path, session)
     return session

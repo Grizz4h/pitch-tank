@@ -1,3 +1,35 @@
+"use client";
+
+import { useEffect, useState } from "react";
+
+type ActiveSession = {
+  id: string;
+  sessionName: string;
+  competition: string;
+  teamA: string;
+  teamB: string;
+  phase: string;
+  track: string;
+  trackTitle: string;
+  status?: "active" | "completed" | "abandoned";
+  observations: unknown[];
+};
+
+const TOKEN_STORAGE_KEY = "pitch-tank.token";
+const ACTIVE_SESSION_KEY = "pitch-tank.activeSessionId";
+const SESSION_CACHE_KEY = "pitchTank.sessions";
+
+function authHeaders(token: string) {
+  return { Authorization: `Bearer ${token}` };
+}
+
+function cacheSession(session: ActiveSession) {
+  const cached = localStorage.getItem(SESSION_CACHE_KEY);
+  const sessions = cached ? (JSON.parse(cached) as ActiveSession[]) : [];
+  const nextSessions = [session, ...sessions.filter((item) => item.id !== session.id)];
+  localStorage.setItem(SESSION_CACHE_KEY, JSON.stringify(nextSessions));
+}
+
 const dashboardCards = [
   {
     title: "Weiter trainieren",
@@ -63,6 +95,85 @@ const tracks = [
 ];
 
 export default function HomePage() {
+  const [activeSession, setActiveSession] = useState<ActiveSession | null>(null);
+  const [isCompleting, setIsCompleting] = useState(false);
+
+  useEffect(() => {
+    async function loadActiveSession() {
+      const token = localStorage.getItem(TOKEN_STORAGE_KEY);
+      const activeSessionId = localStorage.getItem(ACTIVE_SESSION_KEY);
+      if (!token) return;
+
+      try {
+        if (!activeSessionId) {
+          const sessionsResponse = await fetch("/api/sessions", { headers: authHeaders(token) });
+          if (!sessionsResponse.ok) return;
+          const sessions = (await sessionsResponse.json()) as ActiveSession[];
+          localStorage.setItem(SESSION_CACHE_KEY, JSON.stringify(sessions));
+          const serverActiveSession = sessions.find((session) => (session.status ?? "active") === "active") ?? null;
+          if (serverActiveSession) {
+            localStorage.setItem(ACTIVE_SESSION_KEY, serverActiveSession.id);
+            setActiveSession(serverActiveSession);
+            cacheSession(serverActiveSession);
+          }
+          return;
+        }
+
+        const response = await fetch(`/api/sessions/${activeSessionId}`, { headers: authHeaders(token) });
+        if (!response.ok) {
+          localStorage.removeItem(ACTIVE_SESSION_KEY);
+        } else {
+          const session = (await response.json()) as ActiveSession;
+          if ((session.status ?? "active") === "active") {
+            setActiveSession(session);
+            cacheSession(session);
+            return;
+          }
+          localStorage.removeItem(ACTIVE_SESSION_KEY);
+        }
+
+        const sessionsResponse = await fetch("/api/sessions", { headers: authHeaders(token) });
+        if (!sessionsResponse.ok) return;
+        const sessions = (await sessionsResponse.json()) as ActiveSession[];
+        localStorage.setItem(SESSION_CACHE_KEY, JSON.stringify(sessions));
+        const serverActiveSession = sessions.find((session) => (session.status ?? "active") === "active") ?? null;
+        if (serverActiveSession) {
+          localStorage.setItem(ACTIVE_SESSION_KEY, serverActiveSession.id);
+          setActiveSession(serverActiveSession);
+          cacheSession(serverActiveSession);
+        }
+      } catch {
+        // Dashboard bleibt nutzbar, auch wenn der Status gerade nicht geladen werden kann.
+      }
+    }
+
+    loadActiveSession();
+  }, []);
+
+  async function completeActiveSession() {
+    const token = localStorage.getItem(TOKEN_STORAGE_KEY);
+    if (!token || !activeSession) return;
+    if (!window.confirm("Möchtest du diese Session abschließen? Danach wird sie im Session-Verlauf gespeichert.")) return;
+
+    setIsCompleting(true);
+    try {
+      const response = await fetch(`/api/sessions/${activeSession.id}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...authHeaders(token) },
+        body: JSON.stringify({ status: "completed" }),
+      });
+      if (response.ok) {
+        const session = (await response.json()) as ActiveSession;
+        cacheSession(session);
+        localStorage.removeItem(ACTIVE_SESSION_KEY);
+        setActiveSession(null);
+        window.location.href = "/sessions";
+      }
+    } finally {
+      setIsCompleting(false);
+    }
+  }
+
   return (
     <main className="site-shell">
       <header className="site-header" aria-label="Hauptnavigation">
@@ -125,16 +236,30 @@ export default function HomePage() {
           <h2 id="dashboard-title">Dein nächster Schritt</h2>
         </div>
 
-        <div className="dashboard-grid">
-          {dashboardCards.map((card) => (
-            <article className="dashboard-card" key={card.title}>
-              <h3>{card.title}</h3>
-              <p>{card.content}</p>
-              {card.action ? <a href="/tracks/a/a1">{card.action}</a> : null}
-              {card.note ? <span>{card.note}</span> : null}
-            </article>
-          ))}
-        </div>
+        {activeSession ? (
+          <div className="active-dashboard-card">
+            <div>
+              <p className="eyebrow">Aktive Session läuft</p>
+              <h3>{activeSession.sessionName}</h3>
+              <p>{activeSession.competition} · {activeSession.teamA} – {activeSession.teamB} · {activeSession.observations.length} Beobachtungen</p>
+            </div>
+            <div className="session-actions">
+              <a className="button button-primary" href="/tracks/a/a1">Zur Session</a>
+              <button className="button button-secondary" type="button" onClick={completeActiveSession} disabled={isCompleting}>Session abschließen</button>
+            </div>
+          </div>
+        ) : (
+          <div className="dashboard-grid">
+            {dashboardCards.map((card) => (
+              <article className="dashboard-card" key={card.title}>
+                <h3>{card.title}</h3>
+                <p>{card.content}</p>
+                {card.action ? <a href="/tracks/a/a1">{card.action}</a> : null}
+                {card.note ? <span>{card.note}</span> : null}
+              </article>
+            ))}
+          </div>
+        )}
       </section>
 
       <section id="lernpfade" className="tracks-section" aria-labelledby="tracks-title">

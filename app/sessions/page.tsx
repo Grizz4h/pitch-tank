@@ -13,6 +13,8 @@ type AccountUser = {
 type Observation = {
   id: string;
   time: string;
+  matchTime?: string;
+  isInteresting?: boolean;
   optionCount: "1" | "2" | "3" | "4" | "5+";
   bestOption: string;
   played: string;
@@ -31,6 +33,10 @@ type StoredSession = {
   track: string;
   trackTitle: string;
   sessionName: string;
+  sessionStartMatchTime?: string;
+  sessionStartTimestamp?: string;
+  status?: "active" | "completed" | "abandoned";
+  endedAt?: string | null;
   createdAt: string;
   updatedAt: string;
   observations: Observation[];
@@ -39,6 +45,7 @@ type StoredSession = {
 const TOKEN_STORAGE_KEY = "pitch-tank.token";
 const ACCOUNT_STORAGE_KEY = "pitch-tank.account";
 const ACTIVE_SESSION_KEY = "pitch-tank.activeSessionId";
+const SESSION_CACHE_KEY = "pitchTank.sessions";
 
 const optionValues: Record<Observation["optionCount"], number> = {
   "1": 1,
@@ -55,11 +62,29 @@ function formatDate(value: string) {
   });
 }
 
+function getStatusLabel(status?: StoredSession["status"]) {
+  if ((status ?? "active") === "active") return "aktiv";
+  if (status === "completed") return "abgeschlossen";
+  return "verworfen";
+}
+
+function formatDuration(startValue: string, endValue?: string | null) {
+  if (!endValue) return "läuft";
+  const start = Date.parse(startValue);
+  const end = Date.parse(endValue);
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) return "-";
+  const totalSeconds = Math.floor((end - start) / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+}
+
 export default function SessionsPage() {
   const [account, setAccount] = useState<AccountUser | null>(null);
   const [sessions, setSessions] = useState<StoredSession[]>([]);
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -94,6 +119,7 @@ export default function SessionsPage() {
         const loadedSessions = (await sessionsResponse.json()) as StoredSession[];
         localStorage.setItem(ACCOUNT_STORAGE_KEY, JSON.stringify(user));
         setAccount(user);
+        localStorage.setItem(SESSION_CACHE_KEY, JSON.stringify(loadedSessions));
         setSessions(loadedSessions);
         setSelectedSessionId(loadedSessions[0]?.id ?? null);
       } catch (caught) {
@@ -107,6 +133,7 @@ export default function SessionsPage() {
   }, []);
 
   const selectedSession = sessions.find((session) => session.id === selectedSessionId) ?? sessions[0] ?? null;
+  const interestingScenes = selectedSession?.observations.filter((item) => item.isInteresting) ?? [];
 
   const sessionStats = useMemo(() => {
     if (!selectedSession) {
@@ -132,6 +159,35 @@ export default function SessionsPage() {
     window.location.href = "/tracks/a/a1";
   }
 
+  async function deleteSession(session: StoredSession) {
+    const token = localStorage.getItem(TOKEN_STORAGE_KEY);
+    if (!token) return;
+    const label = session.sessionName || `${session.competition} | ${session.teamA} – ${session.teamB} | ${session.track}`;
+    if (!window.confirm(`Session wirklich löschen?\n\n${label}\n\nDiese Aktion kann nicht rückgängig gemacht werden.`)) return;
+
+    setIsDeleting(true);
+    setError("");
+    try {
+      const response = await fetch(`/api/sessions/${session.id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) throw new Error("Session konnte nicht gelöscht werden.");
+
+      const nextSessions = sessions.filter((item) => item.id !== session.id);
+      localStorage.setItem(SESSION_CACHE_KEY, JSON.stringify(nextSessions));
+      if (localStorage.getItem(ACTIVE_SESSION_KEY) === session.id) {
+        localStorage.removeItem(ACTIVE_SESSION_KEY);
+      }
+      setSessions(nextSessions);
+      setSelectedSessionId(nextSessions[0]?.id ?? null);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Session konnte nicht gelöscht werden.");
+    } finally {
+      setIsDeleting(false);
+    }
+  }
+
   return (
     <main className="history-shell">
       <header className="track-topbar">
@@ -149,7 +205,7 @@ export default function SessionsPage() {
       <section className="account-hero" aria-labelledby="history-title">
         <p className="eyebrow">Verlauf</p>
         <h1 id="history-title">Deine gespeicherten Sessions</h1>
-        <p>Alle Sessions werden im Pitch-Tank-Backend gespeichert und deinem Profil zugeordnet.</p>
+        <p>Aktive, abgeschlossene und bewusst verworfene Sessions bleiben im Pitch-Tank-Backend deinem Profil zugeordnet.</p>
       </section>
 
       {isLoading ? <section className="account-card"><p className="empty-state">Lade Verlauf...</p></section> : null}
@@ -194,7 +250,7 @@ export default function SessionsPage() {
               >
                 <span>{session.track} · {session.competition}</span>
                 <strong>{session.teamA} – {session.teamB}</strong>
-                <small>{session.phase || "Phase nicht gesetzt"} · {session.observations.length} Beobachtungen</small>
+                <small>Status: {getStatusLabel(session.status)} · {session.observations.length} Beobachtungen</small>
               </button>
             ))}
           </div>
@@ -209,6 +265,10 @@ export default function SessionsPage() {
                 <span>{selectedSession.phase || "Phase nicht gesetzt"}</span>
                 <span>Fokus: {selectedSession.focusTeam}</span>
                 <span>Track: {selectedSession.track} – {selectedSession.trackTitle}</span>
+                <span>Start-Spielzeit: {selectedSession.sessionStartMatchTime ?? "00:00"}</span>
+                <span>Status: {getStatusLabel(selectedSession.status)}</span>
+                <span>Dauer: {formatDuration(selectedSession.createdAt, selectedSession.endedAt)}</span>
+                <span>Interessante Szenen: {interestingScenes.length}</span>
               </div>
 
               <div className="stats-grid history-stats">
@@ -226,20 +286,33 @@ export default function SessionsPage() {
                 </article>
               </div>
 
+              <section className="timeline-card history-timeline" aria-labelledby="history-interesting-title">
+                <div className="section-heading compact-heading"><p className="eyebrow">Timeline</p><h2 id="history-interesting-title">Interessante Szenen</h2></div>
+                {interestingScenes.length ? <div className="interesting-list">{interestingScenes.map((item) => <span key={item.id}>★ {item.matchTime ?? item.time}</span>)}</div> : <p className="empty-state">Keine interessanten Szenen markiert.</p>}
+              </section>
+
               <div className="history-meta">
                 <span>Erstellt: {formatDate(selectedSession.createdAt)}</span>
                 <span>Aktualisiert: {formatDate(selectedSession.updatedAt)}</span>
+                {selectedSession.endedAt ? <span>Beendet: {formatDate(selectedSession.endedAt)}</span> : null}
               </div>
 
-              <button className="button button-primary" type="button" onClick={() => continueSession(selectedSession.id)}>
-                Session fortsetzen
-              </button>
+              <div className="session-actions history-actions">
+                {(selectedSession.status ?? "active") === "active" ? (
+                  <button className="button button-primary" type="button" onClick={() => continueSession(selectedSession.id)}>
+                    Aktive Session fortsetzen
+                  </button>
+                ) : null}
+                <button className="button danger-button" type="button" onClick={() => deleteSession(selectedSession)} disabled={isDeleting}>
+                  {isDeleting ? "Lösche..." : "Session löschen"}
+                </button>
+              </div>
 
               <div className="log-list history-log">
                 {selectedSession.observations.length ? (
                   selectedSession.observations.map((item) => (
-                    <article className="log-item" key={item.id}>
-                      <time>{item.time}</time>
+                    <article className={item.isInteresting ? "log-item interesting" : "log-item"} key={item.id}>
+                      <time>{item.isInteresting ? "★ " : ""}{item.matchTime ?? item.time}</time>
                       <p>Optionen: {item.optionCount}</p>
                       <p>Beste Option: {item.bestOption}</p>
                       <p>Gespielt: {item.played}</p>
