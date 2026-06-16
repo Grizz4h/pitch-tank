@@ -14,11 +14,11 @@
   "sessionName": "WM 2026 | Belgien – Ägypten | A1",
   "sessionStartMatchTime": "00:00",
   "sessionStartTimestamp": "2026-06-15T19:02:06.309Z",
-  "matchTimeCorrectionSeconds": -1320,
-  "status": "active",
-  "endedAt": null,
+  "matchTimeCorrectionSeconds": -1319,
+  "status": "completed",
+  "endedAt": "2026-06-16T08:51:12+00:00",
   "createdAt": "2026-06-15T19:02:06+00:00",
-  "updatedAt": "2026-06-15T20:14:36+00:00",
+  "updatedAt": "2026-06-16T08:51:12+00:00",
   "observations": [
     {
       "id": "obs_8af2f2c9ff674d9985bd89f8b70077bc",
