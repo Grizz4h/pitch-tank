@@ -18,10 +18,10 @@
   "isMatchClockPaused": false,
   "matchClockPausedSeconds": 2835,
   "matchClockPeriod": "second",
-  "status": "active",
-  "endedAt": null,
+  "status": "completed",
+  "endedAt": "2026-06-19T19:08:15+00:00",
   "createdAt": "2026-06-18T19:40:17+00:00",
-  "updatedAt": "2026-06-18T20:18:00+00:00",
+  "updatedAt": "2026-06-19T19:08:15+00:00",
   "observations": [
     {
       "id": "obs_7fd86c144dcb410697003e5943a178b2",

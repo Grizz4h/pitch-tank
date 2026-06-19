@@ -1,6 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { ActiveSessionHeader } from "@/components/pitch/ActiveSessionHeader";
+import { CollapsibleHelp } from "@/components/pitch/CollapsibleHelp";
+import { DrillCompass } from "@/components/pitch/DrillCompass";
+import { ObservationTimelineItem } from "@/components/pitch/ObservationTimelineItem";
+import { TimeControl } from "@/components/pitch/TimeControl";
 import worldCup2026 from "@/data/world-cup-2026.json";
 
 type PressureLevel = "gering" | "mittel" | "hoch";
@@ -220,6 +225,7 @@ export default function A2TrackPage() {
   const [account, setAccount] = useState<AccountUser | null>(null);
   const [activeSession, setActiveSession] = useState<StoredSession | null>(null);
   const [isSetupOpen, setIsSetupOpen] = useState(false);
+  const [isLearningHelpOpen, setIsLearningHelpOpen] = useState(false);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [error, setError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
@@ -420,11 +426,51 @@ export default function A2TrackPage() {
       localStorage.setItem(ACTIVE_SESSION_KEY, session.id);
       setIsSetupOpen(false);
       setIsFormOpen(false);
+      setIsLearningHelpOpen(false);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Session konnte nicht erstellt werden.");
     } finally {
       setIsSaving(false);
     }
+  }
+
+  function createDummySession() {
+    const now = new Date().toISOString();
+    const dummySession: StoredSession = {
+      id: "dummy-a2-" + Date.now(),
+      profileId: account?.profileId ?? "dummy-profile",
+      profileName: account?.profileName ?? "Testprofil",
+      competition: "WM 2026",
+      teamA: "USA",
+      teamB: "Australien",
+      focusTeam: "Beide Teams",
+      focusPerspective: "Beide Teams",
+      phase: "Testsession",
+      track: "A2",
+      trackTitle: "Druck erkennen",
+      sessionName: "WM 2026 | USA – Australien | A2 Test",
+      sessionStartMatchTime: "82:38",
+      sessionStartTimestamp: now,
+      matchTimeCorrectionSeconds: 0,
+      isMatchClockPaused: false,
+      matchClockPausedSeconds: null,
+      matchClockPeriod: "first",
+      status: "active",
+      endedAt: null,
+      createdAt: now,
+      updatedAt: now,
+      observations: [
+        { id: "dummy-a2-observation-1", time: "83:12", matchTime: "83:12", matchTimeMeta: getMatchTimeMeta(83 * 60 + 12, "second"), track: "A2", pressureLevel: "hoch", pressureDirection: "seitlich", timeWindow: "sofortiger Handlungszwang", solutionQuality: "gut gelöst", outcome: "Druck gelöst", isInteresting: false },
+        { id: "dummy-a2-observation-2", time: "61:33", matchTime: "61:33", matchTimeMeta: getMatchTimeMeta(61 * 60 + 33, "second"), track: "A2", pressureLevel: "mittel", pressureDirection: "von hinten", timeWindow: "kurz", solutionQuality: "erzwungen / verloren", outcome: "Ballverlust", isInteresting: true },
+      ],
+    };
+
+    setActiveSession(dummySession);
+    setIsSetupOpen(false);
+    setIsFormOpen(false);
+    setIsLearningHelpOpen(false);
+    setError("");
+    setNowMs(Date.now());
   }
 
   function resetObservationDraft() {
@@ -548,6 +594,17 @@ export default function A2TrackPage() {
     );
   }
 
+  function jumpToFirstHalf() {
+    if (!activeSession) return;
+    const firstHalfStartSeconds = Math.min(matchClockSeconds, (45 * 60) - 1);
+    if (isMatchClockPaused) {
+      updateTimeline({ matchClockPausedSeconds: firstHalfStartSeconds, matchClockPeriod: "first" }, "Pausierte Spielzeit auf " + formatMatchClockLabel(firstHalfStartSeconds, "first") + " gesetzt.");
+      return;
+    }
+    const nextCorrectionSeconds = getCorrectionForTarget(firstHalfStartSeconds, Date.now());
+    updateTimeline({ matchTimeCorrectionSeconds: nextCorrectionSeconds, matchClockPeriod: "first" }, "Spielzeit auf " + formatMatchClockLabel(firstHalfStartSeconds, "first") + " gesetzt.");
+  }
+
   function jumpToMatchTime() {
     if (!activeSession) return;
     const targetSeconds = parseMatchTime(jumpMatchTime);
@@ -631,28 +688,23 @@ export default function A2TrackPage() {
       <header className="track-topbar">
         <a className="brand" href="/" aria-label="Zur Pitch-Tank-Startseite"><span className="brand-mark" aria-hidden="true">PT</span><span>Pitch Tank</span></a>
         <nav className="nav-links" aria-label="Track-Navigation"><a href="/account">Account</a><a href="/sessions">Verlauf</a><a href="/tracks/a/a1">A1</a><a href="/#lernpfade">Lernpfade</a></nav>
+        <button className="topbar-test-session-button" type="button" onClick={createDummySession}>Testsession</button>
       </header>
 
       {!activeSession ? <section className="track-hero" aria-labelledby="track-title"><p className="eyebrow">Track A · Session 2</p><h1 id="track-title">A2 – Druck erkennen</h1><p>Lerne einzuschätzen, wie viel Zeit und Handlungsfreiheit der Ballführer wirklich hat.</p></section> : null}
 
       <div className={activeSession ? "track-layout live-mode-layout" : "track-layout"}>
         <div className="track-main">
-          {!account ? <section className="account-required-card" aria-labelledby="account-required-title"><p className="eyebrow">Profil fehlt</p><h2 id="account-required-title">Erstelle zuerst dein Profil</h2><p>Sessions und Beobachtungen werden im Backend gespeichert und deinem Account zugeordnet.</p><a className="button button-primary" href="/account">Profil erstellen oder einloggen</a></section> : null}
+          {!account && !activeSession ? <section className="account-required-card" aria-labelledby="account-required-title"><p className="eyebrow">Profil fehlt</p><h2 id="account-required-title">Erstelle zuerst dein Profil</h2><p>Sessions und Beobachtungen werden im Backend gespeichert und deinem Account zugeordnet.</p><a className="button button-primary" href="/account">Profil erstellen oder einloggen</a></section> : null}
           {error ? <section className="account-required-card"><p className="account-error">{error}</p></section> : null}
 
           {activeSession ? (
-            <section className="live-session-header" aria-label="Laufende Session">
-              <div><span>{activeSession.competition}</span><strong>{activeSession.teamA} – {activeSession.teamB}</strong></div>
-              <div className="live-clock"><span>{isMatchClockPaused ? "Pausiert" : matchClockDisplay.label}</span><strong>{matchClockDisplay.baseTime}</strong>{matchClockDisplay.stoppageTime ? <small>{matchClockDisplay.stoppageTime}</small> : null}</div>
-              <div className="live-header-actions"><button className="button button-secondary" type="button" onClick={toggleMatchClockPause} disabled={isCorrectingTime}>{isMatchClockPaused ? "Weiter" : "Pause"}</button><button className="button button-primary" type="button" onClick={() => finishSession("completed")} disabled={isSaving}>Session beenden</button></div>
-            </section>
+            <ActiveSessionHeader session={activeSession} statusLabel={isMatchClockPaused ? "Pausiert" : matchClockDisplay.label} baseTime={matchClockDisplay.baseTime} stoppageTime={matchClockDisplay.stoppageTime} isPaused={isMatchClockPaused} isSaving={isSaving} isCorrectingTime={isCorrectingTime} onTogglePause={toggleMatchClockPause} onFinish={() => finishSession("completed")} timeControl={<TimeControl value={jumpMatchTime} correctionLabel={formatCorrectionOffset(timeCorrectionSeconds)} isPaused={isMatchClockPaused} period={matchClockPeriod} disabled={!activeSession || isCorrectingTime} message={timeCorrectionMessage} interestingScenes={<div className="interesting-list">{interestingObservations.length ? interestingObservations.map((item) => <span key={item.id}>★ {item.matchTime || item.time}</span>) : <span>Noch keine markierten Szenen</span>}</div>} onChange={(value) => setJumpMatchTime(maskMatchTimeInput(value))} onFocus={() => setJumpMatchTime(matchClock)} onStep={updateTimeCorrection} onApply={jumpToMatchTime} onFirstHalf={jumpToFirstHalf} onSecondHalf={jumpToSecondHalf} onTogglePause={toggleMatchClockPause} />} />
           ) : null}
 
-          {!activeSession ? <section className="lesson-box" aria-labelledby="goal-title"><h2 id="goal-title">Lernziel</h2><p>A2 baut auf A1 auf.</p><p>In A1 hast du gelernt, Anspieloptionen zu erkennen. In A2 beobachtest du, ob der Ballführer diese Optionen unter Gegnerdruck überhaupt nutzen kann.</p><p>Nicht jede schlechte Aktion ist ein Fehler. Manchmal ist sie die Folge von Druck, Zeitmangel oder fehlender Handlungsfreiheit.</p></section> : null}
+          {!activeSession ? <A2LearningContent variant="drill" /> : null}
 
-          {!activeSession ? <section className="guide-card" aria-labelledby="when-observe-title"><p className="eyebrow">Auslöser</p><h2 id="when-observe-title">Wann erfasse ich eine Beobachtung?</h2><p>Erfasse eine Beobachtung, wenn ein Spieler den Ball kontrolliert erhält und Gegnerdruck entsteht oder bereits vorhanden ist.</p><div className="guide-columns"><div><h3>Geeignete Situationen</h3><ul><li>Innenverteidiger wird im Aufbau angelaufen</li><li>Sechser erhält den Ball mit Gegner im Rücken</li><li>Außenverteidiger wird an der Linie unter Druck gesetzt</li><li>Flügelspieler bekommt den Ball und wird sofort gedoppelt</li></ul></div><div><h3>Weniger geeignete Situationen</h3><ul><li>Zufallsbälle</li><li>Kopfballduelle</li><li>Pressschläge</li><li>Situationen ohne kontrollierten Ballbesitz</li></ul></div></div></section> : null}
-
-          {!activeSession ? <section className="session-panel" aria-labelledby="session-title"><div><p className="eyebrow">Session</p><h2 id="session-title">Spiel vor der Beobachtung festlegen</h2><p>Erfasse Wettbewerb, Teams, Fokus und die aktuelle Spielzeit direkt für Track A2.</p></div><button className="button button-primary" type="button" onClick={openSetup} disabled={!account}>Session starten</button></section> : null}
+          {!activeSession ? <section className="session-panel" aria-labelledby="session-title"><div><p className="eyebrow">Session</p><h2 id="session-title">Spiel vor der Beobachtung festlegen</h2><p>Erfasse Wettbewerb, Teams, Fokus und die aktuelle Spielzeit direkt für Track A2.</p></div><div className="session-panel-actions"><button className="button button-primary" type="button" onClick={openSetup} disabled={!account}>Session starten</button><button className="button button-secondary test-session-button" type="button" onClick={createDummySession}>Testsession starten</button></div></section> : null}
 
           {isSetupOpen ? (
             <section className="setup-card" aria-labelledby="setup-title"><div className="section-heading compact-heading"><p className="eyebrow">Session-Setup</p><h2 id="setup-title">Welches Spiel beobachtest du?</h2></div>
@@ -670,18 +722,22 @@ export default function A2TrackPage() {
             </section>
           ) : null}
 
-          <section className={activeSession ? "live-capture-panel" : "observation-area"} aria-labelledby="observe-title"><div className="observe-header"><div><p className="eyebrow">Beobachtung erfassen</p><h2 id="observe-title">Drucksituation einordnen</h2></div><button className="capture-button" type="button" onClick={toggleObservationForm} disabled={!activeSession}>+ Drucksituation erfassen</button></div>
+          {activeSession ? (
+            <DrillCompass title="A2 – Druck erkennen" observe="Wie stark ist der Ballführer durch Gegnerdruck eingeschränkt?" trigger="Ein Spieler den Ball kontrolliert erhält und Druck entsteht oder bereits vorhanden ist." onOpenHelp={() => setIsLearningHelpOpen(true)} />
+          ) : null}
+
+          <section className={activeSession ? "live-capture-panel primary-capture-panel" : "observation-area"} aria-labelledby="observe-title"><div className="observe-header"><div><p className="eyebrow">{activeSession ? "Primäre Aktion" : "Beobachtung erfassen"}</p><h2 id="observe-title">Drucksituation einordnen</h2></div><button className="capture-button" type="button" onClick={toggleObservationForm} disabled={!activeSession}>+ Drucksituation erfassen</button></div>
             {!activeSession ? <p className="empty-state">Starte zuerst eine Session, um Beobachtungen zu speichern.</p> : null}
             {isFormOpen && activeSession ? <form className="observation-form" onSubmit={(event) => event.preventDefault()}><div className="captured-time-banner"><span>{editingObservationId ? "Bearbeitete Szenenzeit" : "Szenenzeit"}</span><strong>{capturedMatchTime}</strong><small>{editingObservationId ? "Zeitstempel des gespeicherten Eintrags." : "Fixiert beim Klick auf „Drucksituation erfassen“."}</small></div><ChoiceGroup label="Wie hoch war der Druck?" help="Bewerte, wie stark der Ballführer in seiner Entscheidung eingeschränkt war." options={pressureLevels} value={pressureLevel} onChange={setPressureLevel} explanations={pressureHelp} /><ChoiceGroup label="Aus welcher Richtung kam der Druck?" options={pressureDirections} value={pressureDirection} onChange={setPressureDirection} explanations={directionHelp} /><ChoiceGroup label="Wie groß war das Zeitfenster?" options={timeWindows} value={timeWindow} onChange={setTimeWindow} explanations={timeWindowHelp} /><ChoiceGroup label="Wie wurde die Situation gelöst?" options={solutionQualities} value={solutionQuality} onChange={setSolutionQuality} explanations={solutionHelp} /><ChoiceGroup label="Wie endete die Aktion?" options={outcomes} value={outcome} onChange={setOutcome} /><label className="checkbox-field"><input type="checkbox" checked={isInteresting} onChange={(event) => setIsInteresting(event.target.checked)} /> <span>Besonders interessante Szene</span></label><div className="observation-form-actions"><button className="button button-primary" type="button" onClick={saveObservation} disabled={isSaving}>{isSaving ? "Speichere..." : editingObservationId ? "Änderung speichern" : "Drucksituation speichern"}</button>{editingObservationId ? <button className="button button-secondary" type="button" onClick={() => { resetObservationDraft(); setIsFormOpen(false); }} disabled={isSaving}>Bearbeitung abbrechen</button> : null}</div></form> : null}
           </section>
 
           {activeSession ? (
             <>
-              <section className="live-timeline" aria-labelledby="live-timeline-title"><div className="section-heading compact-heading"><p className="eyebrow">Timeline</p><h2 id="live-timeline-title">Drucksituationen</h2></div>{a2Observations.length ? <div className="live-timeline-list">{a2Observations.map((item) => <article className={item.isInteresting ? "live-timeline-item a2-timeline-item interesting" : "live-timeline-item a2-timeline-item"} key={item.id}><time>{item.isInteresting ? "★ " : ""}{item.matchTime || item.time}</time><span>{item.pressureLevel ?? "-"}</span><strong>{item.solutionQuality ?? "-"} · {item.outcome}</strong><small>{item.pressureDirection ?? "-"} · {item.timeWindow ?? "-"}</small><div className="log-actions"><button type="button" onClick={() => startEditingObservation(item)} disabled={isSaving}>Bearbeiten</button><button type="button" onClick={() => deleteObservation(item)} disabled={isSaving}>Löschen</button></div></article>)}</div> : <p className="empty-state">Noch keine A2-Beobachtungen gespeichert.</p>}</section>
+              <section className="live-timeline" aria-labelledby="live-timeline-title"><div className="section-heading compact-heading"><p className="eyebrow">Timeline</p><h2 id="live-timeline-title">Drucksituationen</h2></div>{a2Observations.length ? <div className="live-timeline-list">{a2Observations.map((item) => <ObservationTimelineItem key={item.id} variant="a2" matchTime={item.matchTime || item.time} secondary={item.pressureLevel ?? "-"} status={(item.solutionQuality ?? "-") + " · " + item.outcome} details={(item.pressureDirection ?? "-") + " · " + (item.timeWindow ?? "-")} isInteresting={item.isInteresting} isSaving={isSaving} onEdit={() => startEditingObservation(item)} onDelete={() => deleteObservation(item)} />)}</div> : <p className="empty-state">Noch keine A2-Beobachtungen gespeichert.</p>}</section>
 
               <details className="session-stat-panel"><summary><span>Session Statistik</span><strong>{stats.count} Drucksituationen</strong></summary><section className="stats-grid compact-stats" aria-label="Live-Statistik A2"><article className="stat-card"><span>Drucksituationen</span><strong>{stats.count}</strong></article><article className="stat-card"><span>Häufigstes Druckniveau</span><strong>{stats.mostCommonLevel}</strong></article><article className="stat-card"><span>Gut gelöst</span><strong>{stats.goodRate}%</strong></article></section></details>
 
-              <details className="learning-help-panel"><summary>Lernhilfe einblenden</summary><div className="learning-help-content"><section className="guide-card" aria-labelledby="live-help-title"><p className="eyebrow">Lernhilfe</p><h2 id="live-help-title">Beobachtungsablauf</h2><ol className="flow-list"><li>Spieler erhält den Ball.</li><li>Gegnerdruck einschätzen.</li><li>Druckrichtung erkennen.</li><li>Zeitfenster bewerten.</li><li>Entscheidung und Ergebnis einordnen.</li></ol><div className="interesting-list">{interestingObservations.length ? interestingObservations.map((item) => <span key={item.id}>★ {item.matchTime || item.time}</span>) : <span>Noch keine markierten Szenen</span>}</div><div className="time-correction-note time-correction-form"><strong>Spielzeit steuern</strong><span>{isMatchClockPaused ? "Uhr pausiert" : "Uhr läuft"} · Korrektur <b>{formatCorrectionOffset(timeCorrectionSeconds)}</b></span><button className="time-pause-button" type="button" onClick={toggleMatchClockPause} disabled={!activeSession || isCorrectingTime}>{isMatchClockPaused ? "Weiter" : "Pause"}</button><button className="time-half-button" type="button" onClick={jumpToSecondHalf} disabled={!activeSession || isCorrectingTime}>2. Halbzeit</button><div className="time-jump-control"><input aria-label="Spielzeit im Format mm:ss" value={jumpMatchTime} onChange={(event) => setJumpMatchTime(maskMatchTimeInput(event.target.value))} onFocus={() => setJumpMatchTime(matchClock)} inputMode="numeric" placeholder="45:00" disabled={!activeSession || isCorrectingTime} /><button type="button" onClick={jumpToMatchTime} disabled={!activeSession || isCorrectingTime}>Setzen</button></div><div className="time-correction-buttons" role="group" aria-label="Spielzeit korrigieren"><button type="button" onClick={() => updateTimeCorrection(-60)} disabled={!activeSession || isCorrectingTime}>-1min</button><button type="button" onClick={() => updateTimeCorrection(-2)} disabled={!activeSession || isCorrectingTime}>-2s</button><button type="button" onClick={() => updateTimeCorrection(-1)} disabled={!activeSession || isCorrectingTime}>-1s</button><button type="button" onClick={() => updateTimeCorrection(1)} disabled={!activeSession || isCorrectingTime}>+1s</button><button type="button" onClick={() => updateTimeCorrection(2)} disabled={!activeSession || isCorrectingTime}>+2s</button><button type="button" onClick={() => updateTimeCorrection(60)} disabled={!activeSession || isCorrectingTime}>+1min</button></div>{timeCorrectionMessage ? <small>{timeCorrectionMessage}</small> : null}</div></section></div></details>
+              <CollapsibleHelp id="a2-learning-help" open={isLearningHelpOpen} onToggle={setIsLearningHelpOpen}><A2LearningContent variant="live" /></CollapsibleHelp>
             </>
           ) : (
             <>
@@ -697,6 +753,41 @@ export default function A2TrackPage() {
   );
 }
 
+
+function A2LearningContent({ variant }: { variant: "drill" | "live" }) {
+  return (
+    <div className={variant === "live" ? "a1-learning-stack live-learning-stack" : "a1-learning-stack"}>
+      <section className="lesson-box" aria-labelledby={variant === "live" ? "live-a2-goal-title" : "goal-title"}>
+        <h2 id={variant === "live" ? "live-a2-goal-title" : "goal-title"}>Lernziel</h2>
+        <p>A2 baut auf A1 auf.</p>
+        <p>In A1 hast du gelernt, Anspieloptionen zu erkennen. In A2 beobachtest du, ob der Ballführer diese Optionen unter Gegnerdruck überhaupt nutzen kann.</p>
+        <p>Nicht jede schlechte Aktion ist ein Fehler. Manchmal ist sie die Folge von Druck, Zeitmangel oder fehlender Handlungsfreiheit.</p>
+      </section>
+
+      <section className="guide-card" aria-labelledby={variant === "live" ? "live-a2-flow-title" : "a2-flow-title"}>
+        <p className="eyebrow">Beobachtungsablauf</p>
+        <h2 id={variant === "live" ? "live-a2-flow-title" : "a2-flow-title"}>Wie funktioniert A2?</h2>
+        <ol className="flow-list"><li>Spieler erhält den Ball.</li><li>Gegnerdruck einschätzen.</li><li>Druckrichtung erkennen.</li><li>Zeitfenster bewerten.</li><li>Entscheidung und Ergebnis einordnen.</li></ol>
+      </section>
+
+      <section className="guide-card" aria-labelledby={variant === "live" ? "live-a2-when-title" : "when-observe-title"}>
+        <p className="eyebrow">Auslöser</p>
+        <h2 id={variant === "live" ? "live-a2-when-title" : "when-observe-title"}>Wann erfasse ich eine Beobachtung?</h2>
+        <p>Erfasse eine Beobachtung, wenn ein Spieler den Ball kontrolliert erhält und Gegnerdruck entsteht oder bereits vorhanden ist.</p>
+        <div className="guide-columns"><div><h3>Geeignete Situationen</h3><ul><li>Innenverteidiger wird im Aufbau angelaufen</li><li>Sechser erhält den Ball mit Gegner im Rücken</li><li>Außenverteidiger wird an der Linie unter Druck gesetzt</li><li>Flügelspieler bekommt den Ball und wird sofort gedoppelt</li></ul></div><div><h3>Weniger geeignete Situationen</h3><ul><li>Zufallsbälle</li><li>Kopfballduelle</li><li>Pressschläge</li><li>Situationen ohne kontrollierten Ballbesitz</li></ul></div></div>
+      </section>
+
+      <section className="guide-card" aria-labelledby={variant === "live" ? "live-a2-examples-title" : "a2-examples-title"}>
+        <p className="eyebrow">Beispiele</p>
+        <h2 id={variant === "live" ? "live-a2-examples-title" : "a2-examples-title"}>Druck einordnen</h2>
+        <div className="category-help-grid examples-grid" aria-label="A2 Kategorien erklärt">
+          {pressureLevels.map((level) => <article className="category-help" key={level}><h3>{level}</h3><p>{pressureHelp[level]}</p></article>)}
+          {timeWindows.map((window) => <article className="category-help" key={window}><h3>{window}</h3><p>{timeWindowHelp[window]}</p></article>)}
+        </div>
+      </section>
+    </div>
+  );
+}
 function TeamAutocomplete({ fieldId, label, value, onChange, matches, suggestion, isValid, isOpen, onFocus, onBlur }: { fieldId: string; label: string; value: string; onChange: (value: string) => void; matches: string[]; suggestion: string; isValid: boolean; isOpen: boolean; onFocus: () => void; onBlur: () => void }) {
   const completionHint = value && suggestion && suggestion !== value ? suggestion : "";
 

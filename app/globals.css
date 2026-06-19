@@ -138,6 +138,24 @@ a {
   background: rgba(238, 246, 239, 0.06);
 }
 
+.topbar-test-session-button {
+  min-height: 36px;
+  padding: 0 11px;
+  border: 1px solid rgba(201, 143, 101, 0.58);
+  border-radius: 6px;
+  color: var(--text);
+  background: rgba(201, 143, 101, 0.13);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 900;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.topbar-test-session-button:hover {
+  background: rgba(201, 143, 101, 0.2);
+}
+
 .hero-section {
   position: relative;
   display: grid;
@@ -685,6 +703,20 @@ h1 {
   line-height: 1.62;
 }
 
+.session-panel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.test-session-button {
+  border-color: rgba(201, 143, 101, 0.55);
+  color: var(--text);
+  background: rgba(201, 143, 101, 0.12);
+}
+
 .lesson-box ul {
   margin: 14px 0 0;
   padding-left: 20px;
@@ -855,6 +887,14 @@ h1 {
     grid-template-columns: 1fr;
   }
 
+  .session-panel-actions {
+    justify-content: stretch;
+  }
+
+  .session-panel-actions .button {
+    width: 100%;
+  }
+
   .observe-header {
     align-items: stretch;
     flex-direction: column;
@@ -873,6 +913,10 @@ h1 {
   .track-topbar {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .topbar-test-session-button {
+    width: 100%;
   }
 
   .track-hero,
@@ -1626,6 +1670,33 @@ h1 {
   margin: 6px 0;
 }
 
+.session-card {
+  display: grid;
+  gap: 12px;
+}
+
+.session-card-main,
+.session-card-meta {
+  display: grid;
+  gap: 4px;
+}
+
+.session-card-meta {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.session-card-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.session-card-actions .button {
+  min-height: 38px;
+  padding: 0 10px;
+  font-size: 0.84rem;
+}
+
 .history-stats {
   margin-top: 18px;
 }
@@ -1662,6 +1733,20 @@ h1 {
   .history-profile-card {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .session-card-meta {
+    grid-template-columns: 1fr;
+  }
+
+  .session-card-actions {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .session-card-actions .button {
+    width: auto;
+    min-width: 0;
+    padding-inline: 8px;
   }
 }
 
@@ -1760,7 +1845,7 @@ h1 {
 
 .time-correction-note {
   display: grid;
-  gap: 5px;
+  gap: 12px;
   margin-top: 18px;
   padding-top: 16px;
   border-top: 1px solid rgba(205, 232, 214, 0.14);
@@ -1777,19 +1862,22 @@ h1 {
 
 .time-correction-form div {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
   gap: 8px;
 }
 
 .time-correction-form input {
+  width: 100%;
   min-width: 0;
+  min-height: 54px;
   border: 1px solid rgba(205, 232, 214, 0.18);
   border-radius: 8px;
-  padding: 10px 11px;
+  padding: 10px 12px;
   color: var(--text);
   background: rgba(238, 246, 239, 0.06);
   font: inherit;
-  font-weight: 800;
+  font-size: 1.25rem;
+  font-weight: 900;
+  text-align: center;
 }
 
 .time-correction-form button {
@@ -1854,13 +1942,46 @@ h1 {
 
 .time-correction-form .time-correction-buttons {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 6px;
 }
 
 .time-correction-form .time-correction-buttons button {
   min-width: 0;
   padding-inline: 8px;
+}
+
+.time-correction-form .time-apply-button {
+  width: 100%;
+  min-height: 50px;
+}
+
+.time-correction-form .time-period-control {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  overflow: hidden;
+  gap: 0;
+  border: 1px solid rgba(205, 232, 214, 0.18);
+  border-radius: 8px;
+  background: rgba(238, 246, 239, 0.045);
+}
+
+.time-correction-form .time-period-control button {
+  min-height: 42px;
+  border: 0;
+  border-right: 1px solid rgba(205, 232, 214, 0.14);
+  border-radius: 0;
+  color: var(--muted);
+  background: transparent;
+}
+
+.time-correction-form .time-period-control button:last-child {
+  border-right: 0;
+}
+
+.time-correction-form .time-period-control button.active {
+  color: #07100c;
+  background: var(--lime);
 }
 
 .captured-time-banner {
@@ -1972,9 +2093,6 @@ h1 {
   }
 }
 
-.history-actions {
-  margin-bottom: 18px;
-}
 
 .field input.invalid-input {
   border-color: rgba(255, 129, 129, 0.55);
@@ -2177,6 +2295,7 @@ h1 {
 }
 
 .live-session-header,
+.drill-compass,
 .live-capture-panel,
 .live-timeline,
 .session-stat-panel,
@@ -2240,6 +2359,7 @@ h1 {
 }
 
 .live-header-actions {
+  position: relative;
   display: flex;
   gap: 8px;
 }
@@ -2250,6 +2370,55 @@ h1 {
   white-space: nowrap;
 }
 
+.time-control-menu {
+  position: relative;
+}
+
+.time-control-menu summary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid rgba(205, 232, 214, 0.2);
+  border-radius: 6px;
+  color: var(--text);
+  background: rgba(238, 246, 239, 0.07);
+  font-size: 0.88rem;
+  font-weight: 900;
+  list-style: none;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.time-control-menu summary::-webkit-details-marker {
+  display: none;
+}
+
+.time-control-menu[open] summary {
+  border-color: rgba(183, 216, 120, 0.58);
+  background: rgba(183, 216, 120, 0.13);
+}
+
+.time-control-popover {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 40;
+  width: min(360px, calc(100vw - 28px));
+  padding: 14px;
+  border: 1px solid rgba(183, 216, 120, 0.24);
+  border-radius: 8px;
+  background: rgba(6, 12, 14, 0.98);
+  box-shadow: 0 18px 52px rgba(0, 0, 0, 0.36);
+}
+
+.time-control-popover .time-correction-note {
+  margin-top: 8px;
+  padding-top: 12px;
+}
+
+.drill-compass,
 .live-capture-panel,
 .live-timeline,
 .session-stat-panel,
@@ -2258,12 +2427,76 @@ h1 {
   padding: clamp(18px, 3vw, 26px);
 }
 
+.drill-compass {
+  display: grid;
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.25fr) auto;
+  gap: 14px;
+  align-items: center;
+  border-color: rgba(183, 216, 120, 0.24);
+  background: linear-gradient(180deg, rgba(12, 24, 23, 0.9), rgba(7, 13, 17, 0.92));
+}
+
+.drill-compass h2 {
+  margin: 0;
+  font-size: clamp(1.08rem, 3vw, 1.35rem);
+  line-height: 1.15;
+}
+
+.drill-compass dl {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.drill-compass dl div {
+  display: grid;
+  grid-template-columns: 104px minmax(0, 1fr);
+  gap: 8px;
+}
+
+.drill-compass dt {
+  color: var(--lime);
+  font-weight: 900;
+}
+
+.drill-compass dd {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.drill-compass button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0 13px;
+  border: 1px solid rgba(205, 232, 214, 0.2);
+  border-radius: 6px;
+  color: var(--text);
+  background: rgba(238, 246, 239, 0.07);
+  font: inherit;
+  font-weight: 900;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
 .live-capture-panel .capture-button {
   min-height: 58px;
   padding: 0 22px;
   border-color: rgba(183, 216, 120, 0.7);
   background: rgba(183, 216, 120, 0.16);
   font-size: 1.03rem;
+}
+
+.primary-capture-panel .observe-header {
+  align-items: stretch;
+}
+
+.primary-capture-panel .capture-button {
+  flex: 1 1 280px;
+  min-height: 68px;
+  font-size: 1.12rem;
 }
 
 .live-timeline-list {
@@ -2275,10 +2508,10 @@ h1 {
 .live-timeline-item {
   display: grid;
   grid-template-columns: 72px minmax(88px, 0.7fr) minmax(0, 1fr) auto;
-  gap: 10px;
+  gap: 8px 10px;
   align-items: center;
-  min-height: 48px;
-  padding: 9px 10px;
+  min-height: 42px;
+  padding: 7px 9px;
   border: 1px solid rgba(205, 232, 214, 0.12);
   border-radius: 6px;
   background: rgba(238, 246, 239, 0.032);
@@ -2365,9 +2598,24 @@ h1 {
   padding: 0 18px 18px;
 }
 
-.learning-help-content .guide-card {
+.learning-help-content .guide-card,
+.learning-help-content .lesson-box {
   margin: 0;
   box-shadow: none;
+}
+
+.a1-learning-stack,
+.live-learning-stack {
+  display: grid;
+  gap: 18px;
+}
+
+.live-learning-stack {
+  margin-bottom: 18px;
+}
+
+.examples-grid .category-help {
+  min-height: 0;
 }
 
 .flow-list {
@@ -2448,12 +2696,41 @@ h1 {
     grid-template-columns: minmax(0, 1fr) auto;
   }
 
-  .live-header-actions {
-    grid-column: 1 / -1;
+  .drill-compass {
+    grid-template-columns: 1fr;
   }
 
-  .live-header-actions .button {
+  .drill-compass dl div {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+
+  .drill-compass button {
+    width: 100%;
+  }
+
+  .live-header-actions {
+    grid-column: 1 / -1;
+    flex-wrap: wrap;
+  }
+
+  .live-header-actions .button,
+  .time-control-menu {
     flex: 1 1 0;
+  }
+
+  .time-control-menu[open] {
+    flex-basis: 100%;
+  }
+
+  .time-control-menu summary {
+    width: 100%;
+  }
+
+  .time-control-popover {
+    position: static;
+    width: 100%;
+    margin-top: 8px;
   }
 
   .live-timeline-item,

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { SessionCard } from "@/components/pitch/SessionCard";
 
 type AccountUser = {
   id: string;
@@ -276,16 +277,16 @@ export default function SessionsPage() {
         <section className="history-layout" aria-label="Session-Verlauf">
           <div className="history-list">
             {sessions.map((session) => (
-              <button
-                className={session.id === selectedSession?.id ? "history-item active" : "history-item"}
+              <SessionCard
                 key={session.id}
-                type="button"
-                onClick={() => setSelectedSessionId(session.id)}
-              >
-                <span>{session.track} · {session.competition}</span>
-                <strong>{session.teamA} – {session.teamB}</strong>
-                <small>Status: {getStatusLabel(session.status)} · {session.observations.length} Beobachtungen</small>
-              </button>
+                session={session}
+                isSelected={session.id === selectedSession?.id}
+                isDeleting={isDeleting}
+                onSelect={() => setSelectedSessionId(session.id)}
+                onOpen={() => continueSession(session)}
+                onEdit={() => setSelectedSessionId(session.id)}
+                onDelete={() => deleteSession(session)}
+              />
             ))}
           </div>
 
@@ -337,17 +338,6 @@ export default function SessionsPage() {
                 <span>Erstellt: {formatDate(selectedSession.createdAt)}</span>
                 <span>Aktualisiert: {formatDate(selectedSession.updatedAt)}</span>
                 {selectedSession.endedAt ? <span>Beendet: {formatDate(selectedSession.endedAt)}</span> : null}
-              </div>
-
-              <div className="session-actions history-actions">
-                {isSelectedSessionActive ? null : (
-                  <button className="button button-primary" type="button" onClick={() => continueSession(selectedSession)}>
-                    Session öffnen
-                  </button>
-                )}
-                <button className="button danger-button" type="button" onClick={() => deleteSession(selectedSession)} disabled={isDeleting}>
-                  {isDeleting ? "Lösche..." : "Session löschen"}
-                </button>
               </div>
 
               <div className="log-list history-log">

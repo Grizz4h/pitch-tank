@@ -1,0 +1,78 @@
+{
+  "id": "session_5dd148008d1e4446bca142ae17d7d995",
+  "userId": "user_8ed441749a5843cf85152b0a493a1448",
+  "profileId": "user_christoph",
+  "profileName": "Christoph",
+  "competition": "WM 2026",
+  "teamA": "USA",
+  "teamB": "Australien",
+  "focusTeam": "USA",
+  "focusPerspective": "Team A",
+  "phase": "Gruppenphase Spieltag 2",
+  "track": "A1",
+  "trackTitle": "Anspielbarkeit beobachten",
+  "sessionName": "WM 2026 | USA – Australien | A1",
+  "sessionStartMatchTime": "08:30",
+  "sessionStartTimestamp": "2026-06-19T19:09:10.779Z",
+  "matchTimeCorrectionSeconds": -1527,
+  "isMatchClockPaused": false,
+  "matchClockPausedSeconds": null,
+  "matchClockPeriod": "second",
+  "status": "completed",
+  "endedAt": "2026-06-19T21:10:10+00:00",
+  "createdAt": "2026-06-19T19:09:10+00:00",
+  "updatedAt": "2026-06-19T21:10:10+00:00",
+  "observations": [
+    {
+      "id": "obs_ad363a4d5d254d1eb429a9b70adba733",
+      "createdAt": "2026-06-19T20:58:30+00:00",
+      "time": "22:58",
+      "matchTime": "90:00 +02:05",
+      "outcome": "Torchance",
+      "isInteresting": false,
+      "matchTimeMeta": {
+        "totalSeconds": 5525,
+        "baseTime": "90:00",
+        "stoppageTime": "+02:05",
+        "periodLabel": "2. Halbzeit"
+      },
+      "optionCount": "1",
+      "bestOption": "Durchbruch",
+      "played": "Ja"
+    },
+    {
+      "id": "obs_57621ca1bc27442fb4d9acd8b7defe1e",
+      "createdAt": "2026-06-19T20:47:01+00:00",
+      "time": "22:47",
+      "matchTime": "80:39",
+      "outcome": "Ballbesitz gehalten",
+      "isInteresting": false,
+      "matchTimeMeta": {
+        "totalSeconds": 4839,
+        "baseTime": "80:39",
+        "stoppageTime": null,
+        "periodLabel": "2. Halbzeit"
+      },
+      "optionCount": "2",
+      "bestOption": "Sicherheit",
+      "played": "Ja"
+    },
+    {
+      "id": "obs_0a043048aeab48999fdab33b30d28858",
+      "createdAt": "2026-06-19T19:09:41+00:00",
+      "time": "21:09",
+      "matchTime": "08:45",
+      "outcome": "Druck aufgelöst",
+      "isInteresting": false,
+      "matchTimeMeta": {
+        "totalSeconds": 525,
+        "baseTime": "08:45",
+        "stoppageTime": null,
+        "periodLabel": "1. Halbzeit"
+      },
+      "optionCount": "3",
+      "bestOption": "Sicherheit",
+      "played": "Ja"
+    }
+  ]
+}
