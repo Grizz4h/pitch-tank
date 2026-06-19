@@ -32,13 +32,16 @@ function cacheSession(session: ActiveSession) {
 
 const dashboardCards = [
   {
-    title: "Weiter trainieren",
-    content: "Track A - Wahrnehmen & Raum lesen",
-    action: "A1 starten",
+    title: "A1 starten",
+    content: "Anspielbarkeit, freie Räume und erste Optionen erkennen",
+    action: "A1 öffnen",
+    href: "/tracks/a/a1",
   },
   {
-    title: "Nächster Fokus",
-    content: "Anspielbarkeit, freie Räume und erste Optionen erkennen",
+    title: "A2 starten",
+    content: "Druck, Zeitfenster und Handlungsfreiheit des Ballführers einordnen",
+    action: "A2 öffnen",
+    href: "/tracks/a/a2",
   },
   {
     title: "Fortschritt",
@@ -58,6 +61,12 @@ const tracks = [
         title: "Anspielbarkeit beobachten",
         description: "Optionen des Ballführers während echter Spiele schneller erkennen.",
         href: "/tracks/a/a1",
+      },
+      {
+        code: "A2",
+        title: "Druck erkennen",
+        description: "Zeit, Gegnerdruck und Handlungsfreiheit des Ballführers einordnen.",
+        href: "/tracks/a/a2",
       },
     ],
   },
@@ -202,7 +211,10 @@ export default function HomePage() {
 
           <div className="hero-actions" aria-label="Primäre Aktionen">
             <a className="button button-primary" href="/tracks/a/a1">
-              Training starten
+              A1 starten
+            </a>
+            <a className="button button-secondary" href="/tracks/a/a2">
+              A2 öffnen
             </a>
             <a className="button button-secondary" href="#curriculum">
               Curriculum ansehen
@@ -224,8 +236,8 @@ export default function HomePage() {
           </div>
           <div className="focus-card">
             <p className="focus-label">Nächster Fokus</p>
-            <h2>Anspielbarkeit erkennen</h2>
-            <p>Freie Räume, Druckwinkel und erste Optionen vor dem Ballkontakt lesen.</p>
+            <h2>Druck erkennen</h2>
+            <p>Nach A1: Zeitfenster, Gegnerdruck und Handlungsfreiheit des Ballführers lesen.</p>
           </div>
         </aside>
       </section>
@@ -244,7 +256,8 @@ export default function HomePage() {
               <p>{activeSession.competition} · {activeSession.teamA} – {activeSession.teamB} · {activeSession.observations.length} Beobachtungen</p>
             </div>
             <div className="session-actions">
-              <a className="button button-primary" href="/tracks/a/a1">Zur Session</a>
+              <a className="button button-primary" href="/tracks/a/a1">A1 öffnen</a>
+              <a className="button button-secondary" href="/tracks/a/a2">A2 öffnen</a>
               <button className="button button-secondary" type="button" onClick={completeActiveSession} disabled={isCompleting}>Session abschließen</button>
             </div>
           </div>
@@ -254,7 +267,7 @@ export default function HomePage() {
               <article className="dashboard-card" key={card.title}>
                 <h3>{card.title}</h3>
                 <p>{card.content}</p>
-                {card.action ? <a href="/tracks/a/a1">{card.action}</a> : null}
+                {card.action ? <a href={card.href}>{card.action}</a> : null}
                 {card.note ? <span>{card.note}</span> : null}
               </article>
             ))}
@@ -312,8 +325,9 @@ export default function HomePage() {
           </article>
           <article className="dashboard-card">
             <h3>2. Session starten</h3>
-            <p>Starte danach direkt den Track A1 und beginne mit Beobachtungen.</p>
-            <a href="/tracks/a/a1">A1 oeffnen</a>
+            <p>Starte mit A1 oder öffne A2, sobald eine aktive Session läuft.</p>
+            <a href="/tracks/a/a1">A1 öffnen</a>
+            <a href="/tracks/a/a2">A2 öffnen</a>
           </article>
           <article className="dashboard-card">
             <h3>3. Fortschritt sichern</h3>

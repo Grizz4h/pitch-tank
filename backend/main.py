@@ -166,22 +166,30 @@ class SessionCreate(BaseModel):
     matchTimeCorrectionSeconds: int = 0
     isMatchClockPaused: bool = False
     matchClockPausedSeconds: int | None = None
+    matchClockPeriod: Literal["first", "second"] = "first"
 
 
 class ObservationCreate(BaseModel):
-    time: str
-    optionCount: Literal["1", "2", "3", "4", "5+"]
-    bestOption: str
-    played: str
-    outcome: str
+    time: str = ""
     matchTime: str = "00:00"
+    matchTimeMeta: dict[str, Any] | None = None
     isInteresting: bool = False
+    track: str | None = None
+    optionCount: Literal["1", "2", "3", "4", "5+"] | None = None
+    bestOption: str | None = None
+    played: str | None = None
+    outcome: str = ""
+    pressureLevel: str | None = None
+    pressureDirection: str | None = None
+    timeWindow: str | None = None
+    solutionQuality: str | None = None
 
 
 class TimelineCorrectionRequest(BaseModel):
     matchTimeCorrectionSeconds: int | None = None
     isMatchClockPaused: bool | None = None
     matchClockPausedSeconds: int | None = None
+    matchClockPeriod: Literal["first", "second"] | None = None
 
 
 class SessionStatusRequest(BaseModel):
@@ -259,6 +267,7 @@ def create_session(payload: SessionCreate, user: dict[str, Any] = Depends(curren
         "matchTimeCorrectionSeconds": payload.matchTimeCorrectionSeconds,
         "isMatchClockPaused": payload.isMatchClockPaused,
         "matchClockPausedSeconds": payload.matchClockPausedSeconds,
+        "matchClockPeriod": payload.matchClockPeriod,
         "status": "active",
         "endedAt": None,
         "createdAt": created_at,
@@ -325,6 +334,8 @@ def correct_session_timeline(
         session["isMatchClockPaused"] = payload.isMatchClockPaused
     if payload.matchClockPausedSeconds is not None:
         session["matchClockPausedSeconds"] = max(0, payload.matchClockPausedSeconds)
+    if payload.matchClockPeriod is not None:
+        session["matchClockPeriod"] = payload.matchClockPeriod
     elif payload.isMatchClockPaused is False:
         session["matchClockPausedSeconds"] = None
     session["updatedAt"] = now_iso()
@@ -344,14 +355,16 @@ def add_observation(
     observation = {
         "id": f"obs_{uuid.uuid4().hex}",
         "createdAt": now_iso(),
-        "time": payload.time,
-        "optionCount": payload.optionCount,
-        "bestOption": payload.bestOption,
-        "played": payload.played,
-        "outcome": payload.outcome,
+        "time": payload.time or now_iso(),
         "matchTime": payload.matchTime,
+        "outcome": payload.outcome,
         "isInteresting": payload.isInteresting,
     }
+    optional_fields = ("track", "matchTimeMeta", "optionCount", "bestOption", "played", "pressureLevel", "pressureDirection", "timeWindow", "solutionQuality")
+    for field in optional_fields:
+        value = getattr(payload, field)
+        if value is not None:
+            observation[field] = value
     session["observations"] = [observation, *session.get("observations", [])]
     session["updatedAt"] = now_iso()
     write_json(path, session)
@@ -372,17 +385,22 @@ def update_observation(
     observations = session.get("observations", [])
     for index, observation in enumerate(observations):
         if observation.get("id") == observation_id:
-            observations[index] = {
+            next_observation = {
                 **observation,
                 "updatedAt": now_iso(),
-                "time": payload.time,
-                "optionCount": payload.optionCount,
-                "bestOption": payload.bestOption,
-                "played": payload.played,
-                "outcome": payload.outcome,
+                "time": payload.time or observation.get("time", now_iso()),
                 "matchTime": payload.matchTime,
+                "outcome": payload.outcome,
                 "isInteresting": payload.isInteresting,
             }
+            optional_fields = ("track", "matchTimeMeta", "optionCount", "bestOption", "played", "pressureLevel", "pressureDirection", "timeWindow", "solutionQuality")
+            for field in optional_fields:
+                value = getattr(payload, field)
+                if value is not None:
+                    next_observation[field] = value
+                else:
+                    next_observation.pop(field, None)
+            observations[index] = next_observation
             session["observations"] = observations
             session["updatedAt"] = now_iso()
             write_json(path, session)

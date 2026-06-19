@@ -1,0 +1,61 @@
+{
+  "id": "session_f90ccd8400224719bb258cb47227ad15",
+  "userId": "user_8ed441749a5843cf85152b0a493a1448",
+  "profileId": "user_christoph",
+  "profileName": "Christoph",
+  "competition": "WM 2026",
+  "teamA": "Tschechien",
+  "teamB": "Südafrika",
+  "focusTeam": "Tschechien",
+  "focusPerspective": "Team A",
+  "phase": "Gruppenphase Spieltag 1",
+  "track": "A1",
+  "trackTitle": "Anspielbarkeit beobachten",
+  "sessionName": "WM 2026 | Tschechien – Südafrika | A1",
+  "sessionStartMatchTime": "18:50",
+  "sessionStartTimestamp": "2026-06-18T16:19:28.542Z",
+  "matchTimeCorrectionSeconds": -1313,
+  "isMatchClockPaused": false,
+  "matchClockPausedSeconds": 3569,
+  "status": "completed",
+  "endedAt": "2026-06-18T18:10:34+00:00",
+  "createdAt": "2026-06-18T16:19:28+00:00",
+  "updatedAt": "2026-06-18T18:10:34+00:00",
+  "observations": [
+    {
+      "id": "obs_dbe959d194ed48e3869f68901747a1a6",
+      "createdAt": "2026-06-18T16:40:22+00:00",
+      "time": "18:40",
+      "matchTime": "39:34",
+      "outcome": "Ballbesitz gehalten",
+      "isInteresting": false,
+      "optionCount": "4",
+      "bestOption": "Sicherheit",
+      "played": "Ja"
+    },
+    {
+      "id": "obs_865985cdded246d5b2b1e85aa1c6de08",
+      "createdAt": "2026-06-18T16:31:27+00:00",
+      "time": "18:31",
+      "matchTime": "30:37",
+      "outcome": "Ballbesitz gehalten",
+      "isInteresting": false,
+      "optionCount": "2",
+      "bestOption": "Sicherheit",
+      "played": "Ja"
+    },
+    {
+      "id": "obs_599912a3219547579a0c412427495e31",
+      "createdAt": "2026-06-18T16:28:52+00:00",
+      "time": "18:29",
+      "matchTime": "27:55",
+      "outcome": "Ballbesitz gehalten",
+      "isInteresting": false,
+      "optionCount": "3",
+      "bestOption": "Sicherheit",
+      "played": "Ja",
+      "updatedAt": "2026-06-18T16:29:18+00:00"
+    }
+  ],
+  "matchClockPeriod": "second"
+}

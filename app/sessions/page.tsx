@@ -10,14 +10,22 @@ type AccountUser = {
   createdAt: string;
 };
 
+type MatchTimeMeta = { totalSeconds: number; baseTime: string; stoppageTime: string | null; periodLabel: string };
+
 type Observation = {
   id: string;
   time: string;
   matchTime?: string;
+  matchTimeMeta?: MatchTimeMeta;
   isInteresting?: boolean;
-  optionCount: "1" | "2" | "3" | "4" | "5+";
-  bestOption: string;
-  played: string;
+  track?: string;
+  optionCount?: "1" | "2" | "3" | "4" | "5+";
+  bestOption?: string;
+  played?: string;
+  pressureLevel?: string;
+  pressureDirection?: string;
+  timeWindow?: string;
+  solutionQuality?: string;
   outcome: string;
 };
 
@@ -47,7 +55,7 @@ const ACCOUNT_STORAGE_KEY = "pitch-tank.account";
 const ACTIVE_SESSION_KEY = "pitch-tank.activeSessionId";
 const SESSION_CACHE_KEY = "pitchTank.sessions";
 
-const optionValues: Record<Observation["optionCount"], number> = {
+const optionValues: Record<"1" | "2" | "3" | "4" | "5+", number> = {
   "1": 1,
   "2": 2,
   "3": 3,
@@ -77,6 +85,15 @@ function formatDuration(startValue: string, endValue?: string | null) {
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
   return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+}
+
+function formatObservationMatchTime(observation: Observation) {
+  if (observation.matchTimeMeta) {
+    const baseTime = observation.matchTimeMeta.baseTime;
+    const stoppageTime = observation.matchTimeMeta.stoppageTime;
+    return stoppageTime ? baseTime + " " + stoppageTime : baseTime;
+  }
+  return observation.matchTime ?? observation.time;
 }
 
 export default function SessionsPage() {
@@ -133,30 +150,46 @@ export default function SessionsPage() {
   }, []);
 
   const selectedSession = sessions.find((session) => session.id === selectedSessionId) ?? sessions[0] ?? null;
+  const isSelectedSessionActive = (selectedSession?.status ?? "active") === "active";
   const interestingScenes = selectedSession?.observations.filter((item) => item.isInteresting) ?? [];
+
+  const isA2Session = selectedSession?.track === "A2" || Boolean(selectedSession?.observations.some((item) => item.track === "A2" || item.pressureLevel));
 
   const sessionStats = useMemo(() => {
     if (!selectedSession) {
-      return { observations: 0, averageOptions: "0", playedRate: 0 };
+      return { observations: 0, averageOptions: "0", playedRate: 0, mostCommonLevel: "-", goodRate: 0 };
     }
 
-    const playedDecisions = selectedSession.observations.filter((item) => item.played !== "Unsicher");
+    if (isA2Session) {
+      const a2Items = selectedSession.observations.filter((item) => item.track === "A2" || item.pressureLevel);
+      const levelCounts = a2Items.reduce<Record<string, number>>((counts, item) => {
+        if (item.pressureLevel) counts[item.pressureLevel] = (counts[item.pressureLevel] ?? 0) + 1;
+        return counts;
+      }, {});
+      const mostCommonLevel = Object.entries(levelCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "-";
+      const goodSolutions = a2Items.filter((item) => item.solutionQuality === "gut gelöst").length;
+      return { observations: a2Items.length, averageOptions: "0", playedRate: 0, mostCommonLevel, goodRate: a2Items.length ? Math.round((goodSolutions / a2Items.length) * 100) : 0 };
+    }
+
+    const a1Items = selectedSession.observations.filter((item) => item.optionCount);
+    const playedDecisions = a1Items.filter((item) => item.played !== "Unsicher");
     const playedYes = playedDecisions.filter((item) => item.played === "Ja").length;
-    const averageOptions = selectedSession.observations.length
-      ? selectedSession.observations.reduce((sum, item) => sum + optionValues[item.optionCount], 0) /
-        selectedSession.observations.length
+    const averageOptions = a1Items.length
+      ? a1Items.reduce((sum, item) => sum + optionValues[item.optionCount ?? "1"], 0) / a1Items.length
       : 0;
 
     return {
       observations: selectedSession.observations.length,
-      averageOptions: selectedSession.observations.length ? averageOptions.toFixed(1) : "0",
+      averageOptions: a1Items.length ? averageOptions.toFixed(1) : "0",
       playedRate: playedDecisions.length ? Math.round((playedYes / playedDecisions.length) * 100) : 0,
+      mostCommonLevel: "-",
+      goodRate: 0,
     };
-  }, [selectedSession]);
+  }, [selectedSession, isA2Session]);
 
-  function continueSession(sessionId: string) {
-    localStorage.setItem(ACTIVE_SESSION_KEY, sessionId);
-    window.location.href = "/tracks/a/a1";
+  function continueSession(session: StoredSession) {
+    localStorage.setItem(ACTIVE_SESSION_KEY, session.id);
+    window.location.href = session.track === "A2" ? "/tracks/a/a2" : "/tracks/a/a1";
   }
 
   async function deleteSession(session: StoredSession) {
@@ -198,6 +231,7 @@ export default function SessionsPage() {
         <nav className="nav-links" aria-label="Bereiche">
           <a href="/account">Account</a>
           <a href="/tracks/a/a1">A1</a>
+          <a href="/tracks/a/a2">A2</a>
           <a href="/">Startseite</a>
         </nav>
       </header>
@@ -256,7 +290,13 @@ export default function SessionsPage() {
           </div>
 
           {selectedSession ? (
-            <article className="history-detail">
+            <article className={isSelectedSessionActive ? "history-detail active-history-detail" : "history-detail"}>
+              {isSelectedSessionActive ? (
+                <section className="active-history-banner" aria-label="Laufende Session">
+                  <div><span>Laufende Session</span><strong>{selectedSession.teamA} – {selectedSession.teamB}</strong><small>{selectedSession.competition} · {selectedSession.track} – {selectedSession.trackTitle}</small></div>
+                  <a className="button button-primary" href={selectedSession.track === "A2" ? "/tracks/a/a2" : "/tracks/a/a1"} onClick={() => localStorage.setItem(ACTIVE_SESSION_KEY, selectedSession.id)}>Fortsetzen</a>
+                </section>
+              ) : null}
               <p className="eyebrow">Session</p>
               <h2>{selectedSession.sessionName}</h2>
               <div className="active-session-grid">
@@ -273,23 +313,25 @@ export default function SessionsPage() {
 
               <div className="stats-grid history-stats">
                 <article className="stat-card">
-                  <span>Beobachtungen</span>
+                  <span>{isA2Session ? "Drucksituationen" : "Beobachtungen"}</span>
                   <strong>{sessionStats.observations}</strong>
                 </article>
                 <article className="stat-card">
-                  <span>Durchschnittlich erkannte Optionen</span>
-                  <strong>{sessionStats.averageOptions}</strong>
+                  <span>{isA2Session ? "Häufigstes Druckniveau" : "Durchschnittlich erkannte Optionen"}</span>
+                  <strong>{isA2Session ? sessionStats.mostCommonLevel : sessionStats.averageOptions}</strong>
                 </article>
                 <article className="stat-card">
-                  <span>Beste Option gespielt</span>
-                  <strong>{sessionStats.playedRate}%</strong>
+                  <span>{isA2Session ? "Gut gelöst" : "Beste Option gespielt"}</span>
+                  <strong>{isA2Session ? sessionStats.goodRate : sessionStats.playedRate}%</strong>
                 </article>
               </div>
 
-              <section className="timeline-card history-timeline" aria-labelledby="history-interesting-title">
-                <div className="section-heading compact-heading"><p className="eyebrow">Timeline</p><h2 id="history-interesting-title">Interessante Szenen</h2></div>
-                {interestingScenes.length ? <div className="interesting-list">{interestingScenes.map((item) => <span key={item.id}>★ {item.matchTime ?? item.time}</span>)}</div> : <p className="empty-state">Keine interessanten Szenen markiert.</p>}
-              </section>
+              {isSelectedSessionActive ? null : (
+                <section className="timeline-card history-timeline" aria-labelledby="history-interesting-title">
+                  <div className="section-heading compact-heading"><p className="eyebrow">Timeline</p><h2 id="history-interesting-title">Interessante Szenen</h2></div>
+                  {interestingScenes.length ? <div className="interesting-list">{interestingScenes.map((item) => <span key={item.id}>★ {formatObservationMatchTime(item)}</span>)}</div> : <p className="empty-state">Keine interessanten Szenen markiert.</p>}
+                </section>
+              )}
 
               <div className="history-meta">
                 <span>Erstellt: {formatDate(selectedSession.createdAt)}</span>
@@ -298,11 +340,11 @@ export default function SessionsPage() {
               </div>
 
               <div className="session-actions history-actions">
-                {(selectedSession.status ?? "active") === "active" ? (
-                  <button className="button button-primary" type="button" onClick={() => continueSession(selectedSession.id)}>
-                    Aktive Session fortsetzen
+                {isSelectedSessionActive ? null : (
+                  <button className="button button-primary" type="button" onClick={() => continueSession(selectedSession)}>
+                    Session öffnen
                   </button>
-                ) : null}
+                )}
                 <button className="button danger-button" type="button" onClick={() => deleteSession(selectedSession)} disabled={isDeleting}>
                   {isDeleting ? "Lösche..." : "Session löschen"}
                 </button>
@@ -310,15 +352,30 @@ export default function SessionsPage() {
 
               <div className="log-list history-log">
                 {selectedSession.observations.length ? (
-                  selectedSession.observations.map((item) => (
-                    <article className={item.isInteresting ? "log-item interesting" : "log-item"} key={item.id}>
-                      <time>{item.isInteresting ? "★ " : ""}{item.matchTime ?? item.time}</time>
-                      <p>Optionen: {item.optionCount}</p>
-                      <p>Beste Option: {item.bestOption}</p>
-                      <p>Gespielt: {item.played}</p>
-                      <p>Ergebnis: {item.outcome}</p>
-                    </article>
-                  ))
+                  selectedSession.observations.map((item) => {
+                    const isA2Item = item.track === "A2" || Boolean(item.pressureLevel);
+                    return (
+                      <article className={item.isInteresting ? "log-item interesting" : "log-item"} key={item.id}>
+                        <time>{item.isInteresting ? "★ " : ""}{formatObservationMatchTime(item)}</time>
+                        {isA2Item ? (
+                          <>
+                            <p>Druck: {item.pressureLevel ?? "-"}</p>
+                            <p>Richtung: {item.pressureDirection ?? "-"}</p>
+                            <p>Zeitfenster: {item.timeWindow ?? "-"}</p>
+                            <p>Lösung: {item.solutionQuality ?? "-"}</p>
+                            <p>Ergebnis: {item.outcome}</p>
+                          </>
+                        ) : (
+                          <>
+                            <p>Optionen: {item.optionCount}</p>
+                            <p>Beste Option: {item.bestOption}</p>
+                            <p>Gespielt: {item.played}</p>
+                            <p>Ergebnis: {item.outcome}</p>
+                          </>
+                        )}
+                      </article>
+                    );
+                  })
                 ) : (
                   <p className="empty-state">Diese Session hat noch keine Beobachtungen.</p>
                 )}

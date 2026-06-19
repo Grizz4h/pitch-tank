@@ -1,0 +1,103 @@
+{
+  "id": "session_3711e3aebb55441c8630d71a6133cdb0",
+  "userId": "user_8ed441749a5843cf85152b0a493a1448",
+  "profileId": "user_christoph",
+  "profileName": "Christoph",
+  "competition": "WM 2026",
+  "teamA": "Schweiz",
+  "teamB": "Bosnien-Herzegowina",
+  "focusTeam": "Schweiz",
+  "focusPerspective": "Team A",
+  "phase": "Gruppenphase Spieltag 2",
+  "track": "A2",
+  "trackTitle": "Druck erkennen",
+  "sessionName": "WM 2026 | Schweiz – Bosnien-Herzegowina | A2",
+  "sessionStartMatchTime": "39:00",
+  "sessionStartTimestamp": "2026-06-18T19:40:16.968Z",
+  "matchTimeCorrectionSeconds": -1152,
+  "isMatchClockPaused": false,
+  "matchClockPausedSeconds": 2835,
+  "matchClockPeriod": "second",
+  "status": "active",
+  "endedAt": null,
+  "createdAt": "2026-06-18T19:40:17+00:00",
+  "updatedAt": "2026-06-18T20:18:00+00:00",
+  "observations": [
+    {
+      "id": "obs_7fd86c144dcb410697003e5943a178b2",
+      "createdAt": "2026-06-18T20:18:00+00:00",
+      "time": "22:18",
+      "matchTime": "57:16",
+      "outcome": "Ballverlust",
+      "isInteresting": false,
+      "track": "A2",
+      "matchTimeMeta": {
+        "totalSeconds": 3436,
+        "baseTime": "57:16",
+        "stoppageTime": null,
+        "periodLabel": "2. Halbzeit"
+      },
+      "pressureLevel": "hoch",
+      "pressureDirection": "frontal",
+      "timeWindow": "kurz",
+      "solutionQuality": "erzwungen / verloren"
+    },
+    {
+      "id": "obs_890b74c9701746d9a82befd7ea7c20d9",
+      "createdAt": "2026-06-18T20:10:09+00:00",
+      "time": "22:10",
+      "matchTime": "49:24",
+      "outcome": "Ballverlust",
+      "isInteresting": false,
+      "track": "A2",
+      "matchTimeMeta": {
+        "totalSeconds": 2964,
+        "baseTime": "49:24",
+        "stoppageTime": null,
+        "periodLabel": "2. Halbzeit"
+      },
+      "pressureLevel": "hoch",
+      "pressureDirection": "von hinten",
+      "timeWindow": "sofortiger Handlungszwang",
+      "solutionQuality": "erzwungen / verloren"
+    },
+    {
+      "id": "obs_28efd6248b6c4c9ca63e5d9b44429de4",
+      "createdAt": "2026-06-18T20:09:02+00:00",
+      "time": "22:09",
+      "matchTime": "48:16",
+      "outcome": "Raumgewinn",
+      "isInteresting": false,
+      "track": "A2",
+      "matchTimeMeta": {
+        "totalSeconds": 2896,
+        "baseTime": "48:16",
+        "stoppageTime": null,
+        "periodLabel": "2. Halbzeit"
+      },
+      "pressureLevel": "gering",
+      "pressureDirection": "frontal",
+      "timeWindow": "ruhig",
+      "solutionQuality": "gut gelöst"
+    },
+    {
+      "id": "obs_6ccd74602e2d4dbc82017e85f1bd01aa",
+      "createdAt": "2026-06-18T20:08:17+00:00",
+      "time": "22:08",
+      "matchTime": "47:24",
+      "outcome": "Raumgewinn",
+      "isInteresting": false,
+      "track": "A2",
+      "matchTimeMeta": {
+        "totalSeconds": 2844,
+        "baseTime": "47:24",
+        "stoppageTime": null,
+        "periodLabel": "2. Halbzeit"
+      },
+      "pressureLevel": "gering",
+      "pressureDirection": "frontal",
+      "timeWindow": "ruhig",
+      "solutionQuality": "gut gelöst"
+    }
+  ]
+}

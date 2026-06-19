@@ -3,10 +3,11 @@
 import { useEffect, useMemo, useState } from "react";
 import worldCup2026 from "@/data/world-cup-2026.json";
 
-type OptionCount = "1" | "2" | "3" | "4" | "5+";
-type BestOption = "Sicherheit" | "Raumgewinn" | "Progression" | "Seitenwechsel" | "Durchbruch";
-type Played = "Ja" | "Nein" | "Unsicher";
-type Outcome = "Ballbesitz gehalten" | "Raumgewinn" | "Druck aufgelöst" | "Ballverlust" | "Torchance";
+type PressureLevel = "gering" | "mittel" | "hoch";
+type PressureDirection = "frontal" | "seitlich" | "von hinten" | "mehrere Richtungen";
+type TimeWindow = "ruhig" | "kurz" | "sofortiger Handlungszwang";
+type SolutionQuality = "gut gelöst" | "okay" | "erzwungen / verloren";
+type PressureOutcome = "Ball gesichert" | "Druck gelöst" | "Raumgewinn" | "Ballverlust" | "Foul / Unterbrechung";
 type FocusPerspective = "Beide Teams" | "Team A" | "Team B";
 type MatchClockPeriod = "first" | "second";
 
@@ -19,11 +20,14 @@ type Observation = {
   time: string;
   matchTime: string;
   matchTimeMeta?: MatchTimeMeta;
-  optionCount: OptionCount;
-  bestOption: BestOption;
-  played: Played;
-  outcome: Outcome;
+  track?: string;
+  pressureLevel?: PressureLevel;
+  pressureDirection?: PressureDirection;
+  timeWindow?: TimeWindow;
+  solutionQuality?: SolutionQuality;
+  outcome: PressureOutcome | string;
   isInteresting: boolean;
+  createdAt?: string;
 };
 
 type StoredSession = {
@@ -57,24 +61,40 @@ const ACCOUNT_STORAGE_KEY = "pitch-tank.account";
 const ACTIVE_SESSION_KEY = "pitch-tank.activeSessionId";
 const SESSION_CACHE_KEY = "pitchTank.sessions";
 
+const pressureLevels: PressureLevel[] = ["gering", "mittel", "hoch"];
+const pressureDirections: PressureDirection[] = ["frontal", "seitlich", "von hinten", "mehrere Richtungen"];
+const timeWindows: TimeWindow[] = ["ruhig", "kurz", "sofortiger Handlungszwang"];
+const solutionQualities: SolutionQuality[] = ["gut gelöst", "okay", "erzwungen / verloren"];
+const outcomes: PressureOutcome[] = ["Ball gesichert", "Druck gelöst", "Raumgewinn", "Ballverlust", "Foul / Unterbrechung"];
 const competitions = ["WM 2026", "EM", "Champions League", "Europa League", "Conference League", "Bundesliga", "2. Bundesliga", "3. Liga", "Premier League", "La Liga", "Serie A", "Ligue 1", "Sonstige"];
-const focusTracks = [{ code: "A1", title: "Anspielbarkeit beobachten" }];
 const phaseExamples = ["Gruppenphase Spieltag 1", "Gruppenphase Spieltag 2", "Achtelfinale", "Viertelfinale", "Halbfinale", "Finale", "34. Spieltag"];
-const optionCounts: OptionCount[] = ["1", "2", "3", "4", "5+"];
-const bestOptions: BestOption[] = ["Sicherheit", "Raumgewinn", "Progression", "Seitenwechsel", "Durchbruch"];
-const playedOptions: Played[] = ["Ja", "Nein", "Unsicher"];
-const outcomes: Outcome[] = ["Ballbesitz gehalten", "Raumgewinn", "Druck aufgelöst", "Ballverlust", "Torchance"];
-const optionValues: Record<OptionCount, number> = { "1": 1, "2": 2, "3": 3, "4": 4, "5+": 5 };
+const trackMeta = { code: "A2", title: "Druck erkennen" };
+const teamsByCompetition: Record<string, string[]> = { [worldCup2026.competition]: Object.values(worldCup2026.groups).flat() };
 
-const categoryHelp: Record<BestOption, { text: string; example: string }> = {
-  Sicherheit: { text: "Ball sichern und Risiko vermeiden.", example: "Pass zurück zum Torwart oder Innenverteidiger." },
-  Raumgewinn: { text: "Freien Raum bespielen oder nutzen.", example: "Pass auf den Außenverteidiger mit viel Platz." },
-  Progression: { text: "Das Spiel nach vorne entwickeln und Linien überspielen.", example: "Pass auf den Sechser zwischen den gegnerischen Reihen." },
-  Seitenwechsel: { text: "Spiel auf die andere Feldseite verlagern.", example: "Von einer zugestellten Seite auf die freie Seite wechseln." },
-  Durchbruch: { text: "Direkter Angriff auf die gegnerische Struktur.", example: "Steckpass hinter die Abwehrkette oder in den Strafraum." },
+const pressureHelp: Record<PressureLevel, string> = {
+  gering: "Der Spieler hat Zeit, kann scannen und mehrere Optionen prüfen.",
+  mittel: "Der Spieler hat Optionen, aber das Zeitfenster ist kurz.",
+  hoch: "Der Spieler muss sofort handeln oder steht unmittelbar vor Ballverlust.",
 };
 
-const teamsByCompetition: Record<string, string[]> = { [worldCup2026.competition]: Object.values(worldCup2026.groups).flat() };
+const directionHelp: Record<PressureDirection, string> = {
+  frontal: "Der Gegner läuft den Ballführer direkt von vorne an und nimmt Sicht oder Passweg.",
+  seitlich: "Der Gegner kommt aus einem Winkel und lenkt den Spieler in eine Richtung.",
+  "von hinten": "Der Spieler wird im Rücken attackiert oder bekommt Druck aus seinem toten Winkel.",
+  "mehrere Richtungen": "Der Ballführer wird von mehreren Gegenspielern gleichzeitig eingeschränkt.",
+};
+
+const timeWindowHelp: Record<TimeWindow, string> = {
+  ruhig: "Der Spieler kann den Ball kontrollieren, aufdrehen oder mehrere Optionen prüfen.",
+  kurz: "Eine Entscheidung ist möglich, aber sie muss schnell kommen.",
+  "sofortiger Handlungszwang": "Der Spieler muss direkt klären, prallen lassen, dribbeln oder sichern.",
+};
+
+const solutionHelp: Record<SolutionQuality, string> = {
+  "gut gelöst": "Der Spieler findet trotz Druck eine stabile Lösung.",
+  okay: "Die Lösung ist nicht perfekt, aber sie verhindert größeren Schaden.",
+  "erzwungen / verloren": "Der Druck führt zu Ballverlust, Panikaktion oder unkontrollierter Klärung.",
+};
 
 function getWallTime() {
   return new Intl.DateTimeFormat("de-DE", { hour: "2-digit", minute: "2-digit" }).format(new Date());
@@ -184,18 +204,6 @@ function getMatchTimeMeta(totalSeconds: number, period: MatchClockPeriod = "firs
   };
 }
 
-function getA1Stats(observations: Observation[]) {
-  const playedDecisions = observations.filter((item) => item.played !== "Unsicher");
-  const playedYes = playedDecisions.filter((item) => item.played === "Ja").length;
-  const averageOptions = observations.length ? observations.reduce((sum, item) => sum + optionValues[item.optionCount], 0) / observations.length : 0;
-
-  return {
-    count: observations.length,
-    averageOptions: observations.length ? averageOptions.toFixed(1) : "0",
-    playedRate: playedDecisions.length ? Math.round((playedYes / playedDecisions.length) * 100) : 0,
-  };
-}
-
 function cacheSession(session: StoredSession) {
   const cached = localStorage.getItem(SESSION_CACHE_KEY);
   const sessions = cached ? (JSON.parse(cached) as StoredSession[]) : [];
@@ -203,13 +211,15 @@ function cacheSession(session: StoredSession) {
   localStorage.setItem(SESSION_CACHE_KEY, JSON.stringify(nextSessions));
 }
 
-export default function A1TrackPage() {
+function isA2Observation(observation: Observation) {
+  return observation.track === "A2" || Boolean(observation.pressureLevel || observation.pressureDirection || observation.timeWindow || observation.solutionQuality);
+}
+
+export default function A2TrackPage() {
   const [token, setToken] = useState<string | null>(null);
   const [account, setAccount] = useState<AccountUser | null>(null);
   const [activeSession, setActiveSession] = useState<StoredSession | null>(null);
-  const [reportSession, setReportSession] = useState<StoredSession | null>(null);
   const [isSetupOpen, setIsSetupOpen] = useState(false);
-  const [isSessionGuardOpen, setIsSessionGuardOpen] = useState(false);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [error, setError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
@@ -220,13 +230,13 @@ export default function A1TrackPage() {
   const [teamB, setTeamB] = useState("");
   const [focusPerspective, setFocusPerspective] = useState<FocusPerspective>("Team A");
   const [phase, setPhase] = useState("Gruppenphase Spieltag 1");
-  const [selectedTrack, setSelectedTrack] = useState("A1");
   const [sessionStartMatchTime, setSessionStartMatchTime] = useState("00:00");
 
-  const [optionCount, setOptionCount] = useState<OptionCount>("3");
-  const [bestOption, setBestOption] = useState<BestOption>("Raumgewinn");
-  const [played, setPlayed] = useState<Played>("Ja");
-  const [outcome, setOutcome] = useState<Outcome>("Ballbesitz gehalten");
+  const [pressureLevel, setPressureLevel] = useState<PressureLevel>("mittel");
+  const [pressureDirection, setPressureDirection] = useState<PressureDirection>("seitlich");
+  const [timeWindow, setTimeWindow] = useState<TimeWindow>("kurz");
+  const [solutionQuality, setSolutionQuality] = useState<SolutionQuality>("okay");
+  const [outcome, setOutcome] = useState<PressureOutcome>("Druck gelöst");
   const [isInteresting, setIsInteresting] = useState(false);
   const [capturedMatchTime, setCapturedMatchTime] = useState("00:00");
   const [capturedMatchTimeMeta, setCapturedMatchTimeMeta] = useState<MatchTimeMeta | null>(null);
@@ -295,12 +305,10 @@ export default function A1TrackPage() {
   }, []);
 
   const observations = activeSession?.observations ?? [];
-  const reportObservations = reportSession?.observations ?? [];
-  const reportStats = useMemo(() => getA1Stats(reportObservations), [reportObservations]);
-  const mode = activeSession ? "live" : reportSession ? "report" : "drill";
+  const a2Observations = observations.filter(isA2Observation);
+  const interestingObservations = a2Observations.filter((item) => item.isInteresting);
   const teamOptions = teamsByCompetition[competition] ?? [];
-  const trackMeta = focusTracks.find((track) => track.code === selectedTrack) ?? focusTracks[0];
-  const sessionName = getSessionName(competition, teamA, teamB, selectedTrack);
+  const sessionName = getSessionName(competition, teamA, teamB, trackMeta.code);
   const focusTeam = focusPerspective === "Team A" ? teamA : focusPerspective === "Team B" ? teamB : "Beide Teams";
   const matchClock = getCurrentMatchTime(activeSession, nowMs);
   const matchClockSeconds = getCurrentMatchSeconds(activeSession, nowMs);
@@ -315,18 +323,24 @@ export default function A1TrackPage() {
   const teamBMatches = getTeamMatches(teamB, teamOptions);
   const isTeamAValid = teamOptions.includes(teamA);
   const isTeamBValid = teamOptions.includes(teamB);
-  const canCreateSession = Boolean(token && account && competition && teamA && teamB && isTeamAValid && isTeamBValid && focusPerspective && selectedTrack && parseMatchTime(sessionStartMatchTime) !== null);
+  const canCreateSession = Boolean(token && account && competition && teamA && teamB && isTeamAValid && isTeamBValid && focusPerspective && parseMatchTime(sessionStartMatchTime) !== null);
 
-  const stats = useMemo(() => getA1Stats(observations), [observations]);
+  const stats = useMemo(() => {
+    const levelCounts = a2Observations.reduce<Record<string, number>>((counts, item) => {
+      if (item.pressureLevel) counts[item.pressureLevel] = (counts[item.pressureLevel] ?? 0) + 1;
+      return counts;
+    }, {});
+    const mostCommonLevel = Object.entries(levelCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "-";
+    const goodSolutions = a2Observations.filter((item) => item.solutionQuality === "gut gelöst").length;
+    return {
+      count: a2Observations.length,
+      mostCommonLevel,
+      goodRate: a2Observations.length ? Math.round((goodSolutions / a2Observations.length) * 100) : 0,
+    };
+  }, [a2Observations]);
 
   function openSetup() {
     setError("");
-    if (activeSession && (activeSession.status ?? "active") === "active") {
-      setIsSessionGuardOpen(true);
-      setIsSetupOpen(false);
-      setIsFormOpen(false);
-      return;
-    }
     setIsSetupOpen(true);
     setIsFormOpen(false);
   }
@@ -349,10 +363,9 @@ export default function A1TrackPage() {
       cacheSession(updatedSession);
       localStorage.removeItem(ACTIVE_SESSION_KEY);
       setActiveSession(null);
-      setReportSession(nextStatus === "completed" ? updatedSession : null);
       setIsFormOpen(false);
       setIsSetupOpen(false);
-      setIsSessionGuardOpen(false);
+      window.location.href = "/sessions";
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Session konnte nicht aktualisiert werden.");
     } finally {
@@ -367,11 +380,59 @@ export default function A1TrackPage() {
     setFocusPerspective("Beide Teams");
   }
 
+  async function createSession() {
+    if (!canCreateSession || !token) return;
+    setIsSaving(true);
+    setError("");
+    const sessionStartTimestamp = new Date().toISOString();
+
+    try {
+      const response = await fetch("/api/sessions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders(token) },
+        body: JSON.stringify({
+          competition,
+          teamA,
+          teamB,
+          focusTeam,
+          focusPerspective,
+          phase,
+          track: trackMeta.code,
+          trackTitle: trackMeta.title,
+          sessionName,
+          sessionStartMatchTime,
+          sessionStartTimestamp,
+          matchTimeCorrectionSeconds: 0,
+          isMatchClockPaused: false,
+          matchClockPausedSeconds: null,
+          matchClockPeriod: "first",
+        }),
+      });
+      if (response.status === 409) {
+        await loadActiveSessionFromServer(token);
+        throw new Error("Es läuft bereits eine aktive Session.");
+      }
+      if (!response.ok) throw new Error("Session konnte nicht erstellt werden.");
+      const session = (await response.json()) as StoredSession;
+      setActiveSession(session);
+      cacheSession(session);
+      setNowMs(Date.now());
+      localStorage.setItem(ACTIVE_SESSION_KEY, session.id);
+      setIsSetupOpen(false);
+      setIsFormOpen(false);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Session konnte nicht erstellt werden.");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   function resetObservationDraft() {
-    setOptionCount("3");
-    setBestOption("Raumgewinn");
-    setPlayed("Ja");
-    setOutcome("Ballbesitz gehalten");
+    setPressureLevel("mittel");
+    setPressureDirection("seitlich");
+    setTimeWindow("kurz");
+    setSolutionQuality("okay");
+    setOutcome("Druck gelöst");
     setIsInteresting(false);
     setEditingObservationId(null);
   }
@@ -393,45 +454,13 @@ export default function A1TrackPage() {
     setEditingObservationId(observation.id);
     setCapturedMatchTime(observation.matchTime || observation.time);
     setCapturedMatchTimeMeta(observation.matchTimeMeta ?? null);
-    setOptionCount(observation.optionCount);
-    setBestOption(observation.bestOption);
-    setPlayed(observation.played);
-    setOutcome(observation.outcome);
-    setIsInteresting(observation.isInteresting);
+    setPressureLevel(observation.pressureLevel ?? "mittel");
+    setPressureDirection(observation.pressureDirection ?? "seitlich");
+    setTimeWindow(observation.timeWindow ?? "kurz");
+    setSolutionQuality(observation.solutionQuality ?? "okay");
+    setOutcome(outcomes.includes(observation.outcome as PressureOutcome) ? observation.outcome as PressureOutcome : "Druck gelöst");
+    setIsInteresting(Boolean(observation.isInteresting));
     setIsFormOpen(true);
-  }
-
-  async function createSession() {
-    if (!canCreateSession || !token) return;
-    setIsSaving(true);
-    setError("");
-    const sessionStartTimestamp = new Date().toISOString();
-
-    try {
-      const response = await fetch("/api/sessions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...authHeaders(token) },
-        body: JSON.stringify({ competition, teamA, teamB, focusTeam, focusPerspective, phase, track: selectedTrack, trackTitle: trackMeta.title, sessionName, sessionStartMatchTime, sessionStartTimestamp, matchTimeCorrectionSeconds: 0, isMatchClockPaused: false, matchClockPausedSeconds: null, matchClockPeriod: "first" }),
-      });
-      if (response.status === 409) {
-        const serverActiveSession = await loadActiveSessionFromServer(token);
-        if (serverActiveSession) setIsSessionGuardOpen(true);
-        throw new Error("Es läuft bereits eine aktive Session.");
-      }
-      if (!response.ok) throw new Error("Session konnte nicht erstellt werden.");
-      const session = (await response.json()) as StoredSession;
-      setActiveSession(session);
-      setReportSession(null);
-      cacheSession(session);
-      setNowMs(Date.now());
-      localStorage.setItem(ACTIVE_SESSION_KEY, session.id);
-      setIsSetupOpen(false);
-      setIsFormOpen(false);
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Session konnte nicht erstellt werden.");
-    } finally {
-      setIsSaving(false);
-    }
   }
 
   async function updateTimeline(
@@ -483,17 +512,11 @@ export default function A1TrackPage() {
     const timerFloorSeconds = getActiveTimerFloor(matchClockSeconds);
     const targetSeconds = Math.max(timerFloorSeconds, matchClockSeconds + deltaSeconds);
     if (isMatchClockPaused) {
-      updateTimeline(
-        { matchClockPausedSeconds: targetSeconds },
-        "Pausierte Spielzeit auf " + formatMatchClockLabel(targetSeconds, matchClockPeriod) + " gesetzt."
-      );
+      updateTimeline({ matchClockPausedSeconds: targetSeconds }, "Pausierte Spielzeit auf " + formatMatchClockLabel(targetSeconds, matchClockPeriod) + " gesetzt.");
       return;
     }
     const nextCorrectionSeconds = getCorrectionForTarget(targetSeconds, Date.now());
-    updateTimeline(
-      { matchTimeCorrectionSeconds: nextCorrectionSeconds },
-      "Spielzeit auf " + formatMatchClockLabel(targetSeconds, matchClockPeriod) + " gesetzt."
-    );
+    updateTimeline({ matchTimeCorrectionSeconds: nextCorrectionSeconds }, "Spielzeit auf " + formatMatchClockLabel(targetSeconds, matchClockPeriod) + " gesetzt.");
   }
 
   function toggleMatchClockPause() {
@@ -502,16 +525,10 @@ export default function A1TrackPage() {
     if (isMatchClockPaused) {
       const resumeSeconds = activeSession.matchClockPausedSeconds ?? matchClockSeconds;
       const nextCorrectionSeconds = getCorrectionForTarget(resumeSeconds, timestampMs);
-      updateTimeline(
-        { matchTimeCorrectionSeconds: nextCorrectionSeconds, isMatchClockPaused: false, matchClockPausedSeconds: null, matchClockPeriod },
-        `Spielzeit läuft weiter ab ${formatMatchTime(resumeSeconds)}.`
-      );
+      updateTimeline({ matchTimeCorrectionSeconds: nextCorrectionSeconds, isMatchClockPaused: false, matchClockPausedSeconds: null, matchClockPeriod }, `Spielzeit läuft weiter ab ${formatMatchTime(resumeSeconds)}.`);
       return;
     }
-    updateTimeline(
-      { isMatchClockPaused: true, matchClockPausedSeconds: matchClockSeconds },
-      `Spielzeit bei ${formatMatchTime(matchClockSeconds)} pausiert.`
-    );
+    updateTimeline({ isMatchClockPaused: true, matchClockPausedSeconds: matchClockSeconds }, `Spielzeit bei ${formatMatchTime(matchClockSeconds)} pausiert.`);
   }
 
   function jumpToSecondHalf() {
@@ -540,17 +557,11 @@ export default function A1TrackPage() {
       return;
     }
     if (isMatchClockPaused) {
-      updateTimeline(
-        { matchClockPausedSeconds: targetSeconds, matchClockPeriod: targetPeriod },
-        "Pausierte Spielzeit auf " + formatMatchClockLabel(targetSeconds, targetPeriod) + " gesetzt."
-      );
+      updateTimeline({ matchClockPausedSeconds: targetSeconds, matchClockPeriod: targetPeriod }, "Pausierte Spielzeit auf " + formatMatchClockLabel(targetSeconds, targetPeriod) + " gesetzt.");
       return;
     }
     const nextCorrectionSeconds = getCorrectionForTarget(targetSeconds, Date.now());
-    updateTimeline(
-      { matchTimeCorrectionSeconds: nextCorrectionSeconds, matchClockPeriod: targetPeriod },
-      "Spielzeit auf " + formatMatchClockLabel(targetSeconds, targetPeriod) + " gesetzt."
-    );
+    updateTimeline({ matchTimeCorrectionSeconds: nextCorrectionSeconds, matchClockPeriod: targetPeriod }, "Spielzeit auf " + formatMatchClockLabel(targetSeconds, targetPeriod) + " gesetzt.");
   }
 
   async function saveObservation() {
@@ -563,16 +574,27 @@ export default function A1TrackPage() {
       const response = await fetch(`/api/sessions/${activeSession.id}/observations${editingObservationId ? `/${editingObservationId}` : ""}`, {
         method: isEditing ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json", ...authHeaders(token) },
-        body: JSON.stringify({ time: getWallTime(), matchTime: capturedMatchTime, matchTimeMeta: capturedMatchTimeMeta, optionCount, bestOption, played, outcome, isInteresting }),
+        body: JSON.stringify({
+          time: getWallTime(),
+          track: "A2",
+          matchTime: capturedMatchTime,
+          matchTimeMeta: capturedMatchTimeMeta,
+          pressureLevel,
+          pressureDirection,
+          timeWindow,
+          solutionQuality,
+          outcome,
+          isInteresting,
+        }),
       });
-      if (!response.ok) throw new Error(isEditing ? "Beobachtung konnte nicht aktualisiert werden." : "Beobachtung konnte nicht gespeichert werden.");
+      if (!response.ok) throw new Error(isEditing ? "Drucksituation konnte nicht aktualisiert werden." : "Drucksituation konnte nicht gespeichert werden.");
       const session = (await response.json()) as StoredSession;
       setActiveSession(session);
       cacheSession(session);
       resetObservationDraft();
       setIsFormOpen(false);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Beobachtung konnte nicht gespeichert werden.");
+      setError(caught instanceof Error ? caught.message : "Drucksituation konnte nicht gespeichert werden.");
     } finally {
       setIsSaving(false);
     }
@@ -580,7 +602,7 @@ export default function A1TrackPage() {
 
   async function deleteObservation(observation: Observation) {
     if (!activeSession || !token) return;
-    if (!window.confirm(`Beobachtung bei ${observation.matchTime || observation.time} wirklich löschen?`)) return;
+    if (!window.confirm(`Drucksituation bei ${observation.matchTime || observation.time} wirklich löschen?`)) return;
     setIsSaving(true);
     setError("");
 
@@ -589,7 +611,7 @@ export default function A1TrackPage() {
         method: "DELETE",
         headers: authHeaders(token),
       });
-      if (!response.ok) throw new Error("Beobachtung konnte nicht gelöscht werden.");
+      if (!response.ok) throw new Error("Drucksituation konnte nicht gelöscht werden.");
       const session = (await response.json()) as StoredSession;
       setActiveSession(session);
       cacheSession(session);
@@ -598,49 +620,41 @@ export default function A1TrackPage() {
         setIsFormOpen(false);
       }
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Beobachtung konnte nicht gelöscht werden.");
+      setError(caught instanceof Error ? caught.message : "Drucksituation konnte nicht gelöscht werden.");
     } finally {
       setIsSaving(false);
     }
   }
 
   return (
-    <main className={mode === "live" ? "track-shell live-track-shell" : "track-shell"}>
+    <main className={activeSession ? "track-shell live-track-shell" : "track-shell"}>
       <header className="track-topbar">
         <a className="brand" href="/" aria-label="Zur Pitch-Tank-Startseite"><span className="brand-mark" aria-hidden="true">PT</span><span>Pitch Tank</span></a>
-        <nav className="nav-links" aria-label="Track-Navigation"><a href="/account">Account</a><a href="/sessions">Verlauf</a><a href="/#lernpfade">Lernpfade</a></nav>
+        <nav className="nav-links" aria-label="Track-Navigation"><a href="/account">Account</a><a href="/sessions">Verlauf</a><a href="/tracks/a/a1">A1</a><a href="/#lernpfade">Lernpfade</a></nav>
       </header>
 
-      {mode === "drill" ? <section className="track-hero" aria-labelledby="track-title"><p className="eyebrow">Track A · Session 1</p><h1 id="track-title">A1 – Anspielbarkeit beobachten</h1><p>Lerne, Optionen des Ballführers bewusster wahrzunehmen.</p></section> : null}
+      {!activeSession ? <section className="track-hero" aria-labelledby="track-title"><p className="eyebrow">Track A · Session 2</p><h1 id="track-title">A2 – Druck erkennen</h1><p>Lerne einzuschätzen, wie viel Zeit und Handlungsfreiheit der Ballführer wirklich hat.</p></section> : null}
 
-      <div className={"track-layout " + mode + "-mode-layout"}>
+      <div className={activeSession ? "track-layout live-mode-layout" : "track-layout"}>
         <div className="track-main">
-          {!account ? <section className="account-required-card" aria-labelledby="account-required-title"><p className="eyebrow">Profil fehlt</p><h2 id="account-required-title">Erstelle zuerst dein Profil</h2><p>Sessions und Beobachtungen werden jetzt im Backend gespeichert und deinem Account zugeordnet.</p><a className="button button-primary" href="/account">Profil erstellen oder einloggen</a></section> : null}
+          {!account ? <section className="account-required-card" aria-labelledby="account-required-title"><p className="eyebrow">Profil fehlt</p><h2 id="account-required-title">Erstelle zuerst dein Profil</h2><p>Sessions und Beobachtungen werden im Backend gespeichert und deinem Account zugeordnet.</p><a className="button button-primary" href="/account">Profil erstellen oder einloggen</a></section> : null}
           {error ? <section className="account-required-card"><p className="account-error">{error}</p></section> : null}
 
-          {mode === "drill" ? (
-            <>
-              <section className="lesson-box" aria-labelledby="goal-title"><h2 id="goal-title">Lernziel</h2><p>In diesem Track beobachtest du während eines echten Fußballspiels die Optionen des Ballführers.</p><p>Ziel ist es, immer schneller zu erkennen:</p><ul><li>Wer ist anspielbar?</li><li>Wie viele Optionen gibt es?</li><li>Welche Option wäre die beste?</li></ul></section>
-
-              <section className="guide-card" aria-labelledby="how-a1-title"><p className="eyebrow">Anleitung</p><h2 id="how-a1-title">Wie funktioniert A1?</h2><p>A1 trainiert deine Fähigkeit, Anspieloptionen des Ballführers bewusst wahrzunehmen.</p><p>Während eines echten Spiels beobachtest du Situationen, in denen ein Spieler den Ball kontrolliert erhält und eine Entscheidung treffen kann.</p><p>Deine Aufgabe ist nicht, den Ball zu verfolgen, sondern die verfügbaren Optionen zu erkennen.</p><details className="option-help-details" open><summary><span aria-hidden="true">i</span>Was zählt als Option?</summary><div className="option-help-content"><p>Eine Option ist eine realistisch ausführbare nächste Aktion innerhalb der nächsten 1–2 Sekunden.</p><p>Zähle nur Aktionen, die der Ballführer tatsächlich spielen oder ausführen könnte.</p><div className="option-help-grid"><div><h3>Zählt als Option</h3><ul><li>Freier Pass zu einem Mitspieler</li><li>Freier Raum zum Andribbeln</li><li>Dribbling gegen einen isolierten Gegenspieler</li><li>Seitenwechsel mit freiem Passweg</li><li>Direkter Pass in einen freien Raum</li></ul></div><div><h3>Zählt nicht als Option</h3><ul><li>Zugestellter Passweg</li><li>Stark bedrängter Mitspieler</li><li>Hoffnungspass ohne realistische Erfolgschance</li><li>Aktionen, die erst nach mehreren Pässen möglich wären</li></ul></div></div><div className="option-rule"><strong>Faustregel</strong><p>Würde ein guter Spieler diese Aktion ernsthaft in Betracht ziehen?</p><p>Wenn ja: Option. Wenn nein: keine Option.</p></div></div></details><div className="option-teaching-note"><p>A1 trainiert nicht das Zählen von Mitspielern.</p><p>A1 trainiert das Erkennen von möglichen Spiellösungen.</p><p>Frage dich nicht: "Wie viele Spieler sehe ich?"</p><p>Frage dich: "Welche Lösungen könnte der Ballführer jetzt tatsächlich wählen?"</p></div></section>
-
-              <section className="guide-card" aria-labelledby="when-observe-title"><p className="eyebrow">Auslöser</p><h2 id="when-observe-title">Wann sollte ich eine Beobachtung erfassen?</h2><p>Erfasse eine Beobachtung, wenn ein Spieler den Ball kontrolliert erhält und mindestens kurz Zeit hat, eine Entscheidung zu treffen.</p><div className="guide-columns"><div><h3>Geeignete Situationen</h3><ul><li>Innenverteidiger erhält den Ball im Aufbau</li><li>Außenverteidiger wird angespielt</li><li>Sechser erhält den Ball zwischen den Linien</li><li>Flügelspieler nimmt einen Pass an</li></ul></div><div><h3>Weniger geeignete Situationen</h3><ul><li>Kopfballduelle</li><li>Pressschläge</li><li>Zufallsbälle</li><li>abgefälschte Aktionen</li><li>Situationen ohne erkennbare Entscheidungsoption</li></ul></div></div></section>
-
-              <section className="session-panel" aria-labelledby="session-title"><div><p className="eyebrow">Session</p><h2 id="session-title">Spiel vor der Beobachtung festlegen</h2><p>Erfasse Wettbewerb, Teams, Fokus und die aktuelle Spielzeit. Eine aktive Session muss erst abgeschlossen oder bewusst verworfen werden.</p></div><button className="button button-primary" type="button" onClick={openSetup} disabled={!account}>Session starten</button></section>
-            </>
-          ) : null}
-
-          {isSessionGuardOpen && activeSession ? (
-            <section className="session-guard-card" aria-labelledby="session-guard-title">
-              <p className="eyebrow">Aktive Session läuft</p>
-              <h2 id="session-guard-title">Es läuft bereits eine aktive Session.</h2>
-              <p>Du kannst zur aktiven Session zurückkehren, sie sauber abschließen oder sie bewusst verwerfen. Eine neue Session überschreibt niemals still die laufende Session.</p>
-              <div className="session-guard-meta"><strong>{activeSession.sessionName}</strong><span>{activeSession.observations.length} Beobachtungen gespeichert</span></div>
-              <div className="session-actions"><button className="button button-primary" type="button" onClick={() => setIsSessionGuardOpen(false)}>Zur aktiven Session</button><button className="button button-secondary" type="button" onClick={() => finishSession("completed")} disabled={isSaving}>Session abschließen</button><button className="button danger-button" type="button" onClick={() => finishSession("abandoned")} disabled={isSaving}>Session verwerfen</button></div>
+          {activeSession ? (
+            <section className="live-session-header" aria-label="Laufende Session">
+              <div><span>{activeSession.competition}</span><strong>{activeSession.teamA} – {activeSession.teamB}</strong></div>
+              <div className="live-clock"><span>{isMatchClockPaused ? "Pausiert" : matchClockDisplay.label}</span><strong>{matchClockDisplay.baseTime}</strong>{matchClockDisplay.stoppageTime ? <small>{matchClockDisplay.stoppageTime}</small> : null}</div>
+              <div className="live-header-actions"><button className="button button-secondary" type="button" onClick={toggleMatchClockPause} disabled={isCorrectingTime}>{isMatchClockPaused ? "Weiter" : "Pause"}</button><button className="button button-primary" type="button" onClick={() => finishSession("completed")} disabled={isSaving}>Session beenden</button></div>
             </section>
           ) : null}
 
-          {isSetupOpen && mode === "drill" ? (
+          {!activeSession ? <section className="lesson-box" aria-labelledby="goal-title"><h2 id="goal-title">Lernziel</h2><p>A2 baut auf A1 auf.</p><p>In A1 hast du gelernt, Anspieloptionen zu erkennen. In A2 beobachtest du, ob der Ballführer diese Optionen unter Gegnerdruck überhaupt nutzen kann.</p><p>Nicht jede schlechte Aktion ist ein Fehler. Manchmal ist sie die Folge von Druck, Zeitmangel oder fehlender Handlungsfreiheit.</p></section> : null}
+
+          {!activeSession ? <section className="guide-card" aria-labelledby="when-observe-title"><p className="eyebrow">Auslöser</p><h2 id="when-observe-title">Wann erfasse ich eine Beobachtung?</h2><p>Erfasse eine Beobachtung, wenn ein Spieler den Ball kontrolliert erhält und Gegnerdruck entsteht oder bereits vorhanden ist.</p><div className="guide-columns"><div><h3>Geeignete Situationen</h3><ul><li>Innenverteidiger wird im Aufbau angelaufen</li><li>Sechser erhält den Ball mit Gegner im Rücken</li><li>Außenverteidiger wird an der Linie unter Druck gesetzt</li><li>Flügelspieler bekommt den Ball und wird sofort gedoppelt</li></ul></div><div><h3>Weniger geeignete Situationen</h3><ul><li>Zufallsbälle</li><li>Kopfballduelle</li><li>Pressschläge</li><li>Situationen ohne kontrollierten Ballbesitz</li></ul></div></div></section> : null}
+
+          {!activeSession ? <section className="session-panel" aria-labelledby="session-title"><div><p className="eyebrow">Session</p><h2 id="session-title">Spiel vor der Beobachtung festlegen</h2><p>Erfasse Wettbewerb, Teams, Fokus und die aktuelle Spielzeit direkt für Track A2.</p></div><button className="button button-primary" type="button" onClick={openSetup} disabled={!account}>Session starten</button></section> : null}
+
+          {isSetupOpen ? (
             <section className="setup-card" aria-labelledby="setup-title"><div className="section-heading compact-heading"><p className="eyebrow">Session-Setup</p><h2 id="setup-title">Welches Spiel beobachtest du?</h2></div>
               <form className="setup-form" onSubmit={(event) => event.preventDefault()}>
                 <label className="field"><span>Wettbewerb</span><select value={competition} onChange={(event) => updateCompetition(event.target.value)} required>{competitions.map((item) => <option key={item} value={item}>{item}</option>)}</select></label>
@@ -648,7 +662,7 @@ export default function A1TrackPage() {
                 {!teamOptions.length ? <p className="form-hint">Für diesen Wettbewerb sind noch keine Teams hinterlegt. Eine Session kann erst mit hinterlegten Teams gestartet werden.</p> : <p className="form-hint">Tippe los und wähle ein Team aus den Vorschlägen. Freitext ist hier nicht gültig.</p>}
                 <fieldset className="choice-group setup-choice"><legend>Welches Team beobachtest du hauptsächlich?</legend><div>{(["Beide Teams", "Team A", "Team B"] as FocusPerspective[]).map((option) => <button className={option === focusPerspective ? "choice active" : "choice"} key={option} type="button" onClick={() => setFocusPerspective(option)}>{option === "Team A" && teamA ? teamA : option === "Team B" && teamB ? teamB : option}</button>)}</div></fieldset>
                 <label className="field"><span>Phase / Spieltag</span><input list="phase-examples" value={phase} onChange={(event) => setPhase(event.target.value)} placeholder="Gruppenphase Spieltag 1" /><datalist id="phase-examples">{phaseExamples.map((example) => <option key={example} value={example} />)}</datalist></label>
-                <label className="field"><span>Fokus-Track</span><select value={selectedTrack} onChange={(event) => setSelectedTrack(event.target.value)} required>{focusTracks.map((track) => <option key={track.code} value={track.code}>{track.code} – {track.title}</option>)}</select></label>
+                <label className="field"><span>Fokus-Track</span><input value={trackMeta.code + " – " + trackMeta.title} readOnly /></label>
                 <label className="field"><span>Aktuelle Spielzeit</span><input value={sessionStartMatchTime} onChange={(event) => setSessionStartMatchTime(maskMatchTimeInput(event.target.value))} inputMode="numeric" placeholder="00:00" required /><small>Tippe nur Zahlen, zum Beispiel 5256 für 52:56. Pitch Tank verwendet diese Zeit als Startpunkt für die Session-Timeline.</small></label>
                 <div className="generated-session-name"><span>Sessionname</span><strong>{sessionName}</strong></div>
                 <button className="button button-primary" type="button" onClick={createSession} disabled={!canCreateSession || isSaving}>{isSaving ? "Speichere..." : "Setup abschließen und Session starten"}</button>
@@ -656,45 +670,32 @@ export default function A1TrackPage() {
             </section>
           ) : null}
 
+          <section className={activeSession ? "live-capture-panel" : "observation-area"} aria-labelledby="observe-title"><div className="observe-header"><div><p className="eyebrow">Beobachtung erfassen</p><h2 id="observe-title">Drucksituation einordnen</h2></div><button className="capture-button" type="button" onClick={toggleObservationForm} disabled={!activeSession}>+ Drucksituation erfassen</button></div>
+            {!activeSession ? <p className="empty-state">Starte zuerst eine Session, um Beobachtungen zu speichern.</p> : null}
+            {isFormOpen && activeSession ? <form className="observation-form" onSubmit={(event) => event.preventDefault()}><div className="captured-time-banner"><span>{editingObservationId ? "Bearbeitete Szenenzeit" : "Szenenzeit"}</span><strong>{capturedMatchTime}</strong><small>{editingObservationId ? "Zeitstempel des gespeicherten Eintrags." : "Fixiert beim Klick auf „Drucksituation erfassen“."}</small></div><ChoiceGroup label="Wie hoch war der Druck?" help="Bewerte, wie stark der Ballführer in seiner Entscheidung eingeschränkt war." options={pressureLevels} value={pressureLevel} onChange={setPressureLevel} explanations={pressureHelp} /><ChoiceGroup label="Aus welcher Richtung kam der Druck?" options={pressureDirections} value={pressureDirection} onChange={setPressureDirection} explanations={directionHelp} /><ChoiceGroup label="Wie groß war das Zeitfenster?" options={timeWindows} value={timeWindow} onChange={setTimeWindow} explanations={timeWindowHelp} /><ChoiceGroup label="Wie wurde die Situation gelöst?" options={solutionQualities} value={solutionQuality} onChange={setSolutionQuality} explanations={solutionHelp} /><ChoiceGroup label="Wie endete die Aktion?" options={outcomes} value={outcome} onChange={setOutcome} /><label className="checkbox-field"><input type="checkbox" checked={isInteresting} onChange={(event) => setIsInteresting(event.target.checked)} /> <span>Besonders interessante Szene</span></label><div className="observation-form-actions"><button className="button button-primary" type="button" onClick={saveObservation} disabled={isSaving}>{isSaving ? "Speichere..." : editingObservationId ? "Änderung speichern" : "Drucksituation speichern"}</button>{editingObservationId ? <button className="button button-secondary" type="button" onClick={() => { resetObservationDraft(); setIsFormOpen(false); }} disabled={isSaving}>Bearbeitung abbrechen</button> : null}</div></form> : null}
+          </section>
+
           {activeSession ? (
             <>
-              <section className="live-session-header" aria-label="Laufende Session">
-                <div><span>{activeSession.competition}</span><strong>{activeSession.teamA} – {activeSession.teamB}</strong></div>
-                <div className="live-clock"><span>{isMatchClockPaused ? "pausiert" : matchClockDisplay.label}</span><strong>{matchClockDisplay.baseTime}</strong>{matchClockDisplay.stoppageTime ? <small>{matchClockDisplay.stoppageTime}</small> : null}</div>
-                <div className="live-header-actions"><button className="button button-secondary" type="button" onClick={toggleMatchClockPause} disabled={isCorrectingTime}>{isMatchClockPaused ? "Weiter" : "Pause"}</button><button className="button button-primary" type="button" onClick={() => finishSession("completed")} disabled={isSaving}>Session beenden</button></div>
-              </section>
+              <section className="live-timeline" aria-labelledby="live-timeline-title"><div className="section-heading compact-heading"><p className="eyebrow">Timeline</p><h2 id="live-timeline-title">Drucksituationen</h2></div>{a2Observations.length ? <div className="live-timeline-list">{a2Observations.map((item) => <article className={item.isInteresting ? "live-timeline-item a2-timeline-item interesting" : "live-timeline-item a2-timeline-item"} key={item.id}><time>{item.isInteresting ? "★ " : ""}{item.matchTime || item.time}</time><span>{item.pressureLevel ?? "-"}</span><strong>{item.solutionQuality ?? "-"} · {item.outcome}</strong><small>{item.pressureDirection ?? "-"} · {item.timeWindow ?? "-"}</small><div className="log-actions"><button type="button" onClick={() => startEditingObservation(item)} disabled={isSaving}>Bearbeiten</button><button type="button" onClick={() => deleteObservation(item)} disabled={isSaving}>Löschen</button></div></article>)}</div> : <p className="empty-state">Noch keine A2-Beobachtungen gespeichert.</p>}</section>
 
-              <section className="live-capture-panel" aria-labelledby="observe-title"><div className="observe-header"><div><p className="eyebrow">Beobachtung erfassen</p><h2 id="observe-title">Optionen im Spielmoment</h2></div><button className="capture-button" type="button" onClick={toggleObservationForm}>+ Beobachtung erfassen</button></div>
-                {isFormOpen ? <form className="observation-form" onSubmit={(event) => event.preventDefault()}><div className="captured-time-banner"><span>{editingObservationId ? "Bearbeitete Szenenzeit" : "Szenenzeit"}</span><strong>{capturedMatchTime}</strong><small>{editingObservationId ? "Zeitstempel des gespeicherten Eintrags." : "Fixiert beim Klick auf „Beobachtung erfassen“."}</small></div><ChoiceGroup label="Wie viele sinnvolle Optionen hatte der Ballführer?" help="Sinnvolle Optionen sind realistisch spielbare Anschlussaktionen. Zähle nicht jeden Mitspieler auf dem Feld, sondern nur Spieler oder Räume, die tatsächlich angespielt werden könnten." options={optionCounts} value={optionCount} onChange={setOptionCount} /><ChoiceGroup label="Welche Option war die beste?" help="Wähle die Option, die aus deiner Sicht den größten Mehrwert erzeugt hätte. Es geht nicht darum, was tatsächlich gespielt wurde." options={bestOptions} value={bestOption} onChange={setBestOption} /><div className="category-help-grid" aria-label="Kategorien erklärt">{bestOptions.map((option) => <article className={option === bestOption ? "category-help active" : "category-help"} key={option}><h3>{option}</h3><p>{categoryHelp[option].text}</p><small>Beispiel: {categoryHelp[option].example}</small></article>)}</div><ChoiceGroup label="Wurde diese Option gespielt?" help="Vergleiche deine Einschätzung mit der tatsächlichen Entscheidung des Spielers." options={playedOptions} value={played} onChange={setPlayed} /><ChoiceGroup label="Wie endete die Aktion?" help="Bewerte das unmittelbare Ergebnis der gewählten Aktion." options={outcomes} value={outcome} onChange={setOutcome} /><label className="checkbox-field"><input type="checkbox" checked={isInteresting} onChange={(event) => setIsInteresting(event.target.checked)} /> <span>Besonders interessante Szene</span></label><div className="observation-form-actions"><button className="button button-primary" type="button" onClick={saveObservation} disabled={isSaving}>{isSaving ? "Speichere..." : editingObservationId ? "Änderung speichern" : "Beobachtung speichern"}</button>{editingObservationId ? <button className="button button-secondary" type="button" onClick={() => { resetObservationDraft(); setIsFormOpen(false); }} disabled={isSaving}>Bearbeitung abbrechen</button> : null}</div></form> : null}
-              </section>
+              <details className="session-stat-panel"><summary><span>Session Statistik</span><strong>{stats.count} Drucksituationen</strong></summary><section className="stats-grid compact-stats" aria-label="Live-Statistik A2"><article className="stat-card"><span>Drucksituationen</span><strong>{stats.count}</strong></article><article className="stat-card"><span>Häufigstes Druckniveau</span><strong>{stats.mostCommonLevel}</strong></article><article className="stat-card"><span>Gut gelöst</span><strong>{stats.goodRate}%</strong></article></section></details>
 
-              <section className="live-timeline" aria-labelledby="live-timeline-title"><div className="section-heading compact-heading"><p className="eyebrow">Timeline</p><h2 id="live-timeline-title">Beobachtungen</h2></div>{observations.length ? <div className="live-timeline-list">{observations.map((item) => <article className={item.isInteresting ? "live-timeline-item interesting" : "live-timeline-item"} key={item.id}><time>{item.isInteresting ? "★ " : ""}{item.matchTime || item.time}</time><span>{item.optionCount} Optionen</span><strong>{item.played === "Ja" ? "✓" : item.played === "Nein" ? "✗" : "?"} {item.bestOption}</strong><div className="log-actions"><button type="button" onClick={() => startEditingObservation(item)} disabled={isSaving}>Bearbeiten</button><button type="button" onClick={() => deleteObservation(item)} disabled={isSaving}>Löschen</button></div></article>)}</div> : <p className="empty-state">Noch keine Beobachtungen gespeichert.</p>}</section>
-
-              <details className="session-stat-panel"><summary><span>Session Statistik</span><strong>{stats.count} Beobachtungen</strong></summary><section className="stats-grid compact-stats" aria-label="Live-Statistik"><article className="stat-card"><span>Beobachtungen</span><strong>{stats.count}</strong></article><article className="stat-card"><span>Ø Optionen</span><strong>{stats.averageOptions}</strong></article><article className="stat-card"><span>Beste Option gespielt</span><strong>{stats.playedRate}%</strong></article></section></details>
-
-              <details className="learning-help-panel"><summary>Lernhilfe einblenden</summary><div className="learning-help-content"><section className="guide-card" aria-labelledby="live-help-title"><p className="eyebrow">Lernhilfe</p><h2 id="live-help-title">Beobachtungsablauf</h2><ol className="flow-list"><li>Spieler erhält den Ball.</li><li>Optionen erkennen.</li><li>Beste Option bestimmen.</li><li>Tatsächliche Entscheidung vergleichen.</li><li>Ergebnis bewerten.</li></ol><div className="time-correction-note time-correction-form"><strong>Spielzeit steuern</strong><span>{isMatchClockPaused ? "Uhr pausiert" : "Uhr läuft"} · Korrektur <b>{formatCorrectionOffset(timeCorrectionSeconds)}</b></span><button className="time-pause-button" type="button" onClick={toggleMatchClockPause} disabled={!activeSession || isCorrectingTime}>{isMatchClockPaused ? "Weiter" : "Pause"}</button><button className="time-half-button" type="button" onClick={jumpToSecondHalf} disabled={!activeSession || isCorrectingTime}>2. Halbzeit</button><div className="time-jump-control"><input aria-label="Spielzeit im Format mm:ss" value={jumpMatchTime} onChange={(event) => setJumpMatchTime(maskMatchTimeInput(event.target.value))} onFocus={() => setJumpMatchTime(matchClock)} inputMode="numeric" placeholder="45:00" disabled={!activeSession || isCorrectingTime} /><button type="button" onClick={jumpToMatchTime} disabled={!activeSession || isCorrectingTime}>Setzen</button></div><div className="time-correction-buttons" role="group" aria-label="Spielzeit korrigieren"><button type="button" onClick={() => updateTimeCorrection(-60)} disabled={!activeSession || isCorrectingTime}>-1min</button><button type="button" onClick={() => updateTimeCorrection(-2)} disabled={!activeSession || isCorrectingTime}>-2s</button><button type="button" onClick={() => updateTimeCorrection(-1)} disabled={!activeSession || isCorrectingTime}>-1s</button><button type="button" onClick={() => updateTimeCorrection(1)} disabled={!activeSession || isCorrectingTime}>+1s</button><button type="button" onClick={() => updateTimeCorrection(2)} disabled={!activeSession || isCorrectingTime}>+2s</button><button type="button" onClick={() => updateTimeCorrection(60)} disabled={!activeSession || isCorrectingTime}>+1min</button></div>{timeCorrectionMessage ? <small>{timeCorrectionMessage}</small> : null}</div></section></div></details>
+              <details className="learning-help-panel"><summary>Lernhilfe einblenden</summary><div className="learning-help-content"><section className="guide-card" aria-labelledby="live-help-title"><p className="eyebrow">Lernhilfe</p><h2 id="live-help-title">Beobachtungsablauf</h2><ol className="flow-list"><li>Spieler erhält den Ball.</li><li>Gegnerdruck einschätzen.</li><li>Druckrichtung erkennen.</li><li>Zeitfenster bewerten.</li><li>Entscheidung und Ergebnis einordnen.</li></ol><div className="interesting-list">{interestingObservations.length ? interestingObservations.map((item) => <span key={item.id}>★ {item.matchTime || item.time}</span>) : <span>Noch keine markierten Szenen</span>}</div><div className="time-correction-note time-correction-form"><strong>Spielzeit steuern</strong><span>{isMatchClockPaused ? "Uhr pausiert" : "Uhr läuft"} · Korrektur <b>{formatCorrectionOffset(timeCorrectionSeconds)}</b></span><button className="time-pause-button" type="button" onClick={toggleMatchClockPause} disabled={!activeSession || isCorrectingTime}>{isMatchClockPaused ? "Weiter" : "Pause"}</button><button className="time-half-button" type="button" onClick={jumpToSecondHalf} disabled={!activeSession || isCorrectingTime}>2. Halbzeit</button><div className="time-jump-control"><input aria-label="Spielzeit im Format mm:ss" value={jumpMatchTime} onChange={(event) => setJumpMatchTime(maskMatchTimeInput(event.target.value))} onFocus={() => setJumpMatchTime(matchClock)} inputMode="numeric" placeholder="45:00" disabled={!activeSession || isCorrectingTime} /><button type="button" onClick={jumpToMatchTime} disabled={!activeSession || isCorrectingTime}>Setzen</button></div><div className="time-correction-buttons" role="group" aria-label="Spielzeit korrigieren"><button type="button" onClick={() => updateTimeCorrection(-60)} disabled={!activeSession || isCorrectingTime}>-1min</button><button type="button" onClick={() => updateTimeCorrection(-2)} disabled={!activeSession || isCorrectingTime}>-2s</button><button type="button" onClick={() => updateTimeCorrection(-1)} disabled={!activeSession || isCorrectingTime}>-1s</button><button type="button" onClick={() => updateTimeCorrection(1)} disabled={!activeSession || isCorrectingTime}>+1s</button><button type="button" onClick={() => updateTimeCorrection(2)} disabled={!activeSession || isCorrectingTime}>+2s</button><button type="button" onClick={() => updateTimeCorrection(60)} disabled={!activeSession || isCorrectingTime}>+1min</button></div>{timeCorrectionMessage ? <small>{timeCorrectionMessage}</small> : null}</div></section></div></details>
             </>
-          ) : null}
-
-          {reportSession ? (
-            <section className="session-report" aria-labelledby="report-title">
-              <p className="eyebrow">Session Report</p><h1 id="report-title">{reportSession.competition}</h1><p className="report-subtitle">{reportSession.teamA} – {reportSession.teamB} · {reportSession.track}</p>
-              <div className="report-kpis"><article><span>Beobachtungen</span><strong>{reportStats.count}</strong></article><article><span>Ø Optionen</span><strong>{reportStats.averageOptions}</strong></article><article><span>Beste Option gespielt</span><strong>{reportStats.playedRate}%</strong></article></div>
-              <section className="report-section" aria-labelledby="report-timeline-title"><h2 id="report-timeline-title">Timeline</h2>{reportObservations.length ? <div className="live-timeline-list report-timeline-list">{reportObservations.map((item) => <article className={item.isInteresting ? "live-timeline-item interesting" : "live-timeline-item"} key={item.id}><time>{item.isInteresting ? "★ " : ""}{item.matchTime || item.time}</time><span>{item.optionCount} Optionen</span><strong>{item.played === "Ja" ? "✓" : item.played === "Nein" ? "✗" : "?"} {item.bestOption}</strong><small>{item.outcome}</small></article>)}</div> : <p className="empty-state">Keine Beobachtungen gespeichert.</p>}</section>
-              <section className="report-section" aria-labelledby="report-observations-title"><h2 id="report-observations-title">Beobachtungen</h2>{reportObservations.length ? <div className="log-list">{reportObservations.map((item) => <article className={item.isInteresting ? "log-item interesting" : "log-item"} key={item.id}><time>{item.isInteresting ? "★ " : ""}{item.matchTime || item.time}</time><p>Optionen: {item.optionCount}</p><p>Beste Option: {item.bestOption}</p><p>Gespielt: {item.played}</p><p>Ergebnis: {item.outcome}</p></article>)}</div> : <p className="empty-state">Keine Beobachtungen gespeichert.</p>}</section>
-              <section className="report-section insights-panel" aria-labelledby="insights-title"><h2 id="insights-title">Erkenntnisse</h2><p>Du erkennst durchschnittlich {reportStats.averageOptions} Optionen pro Szene.</p><p>{reportStats.playedRate >= 60 ? "Die beste Option wurde häufig gespielt." : "Die beste Option wurde seltener gespielt."}</p><p>{reportObservations.some((item) => item.bestOption === "Durchbruch") ? "Du hast Durchbruchoptionen bereits markiert." : "Du bewertest Durchbruchoptionen noch selten als beste Lösung."}</p></section>
-              <div className="report-actions"><a className="button button-secondary" href="/sessions">Zum Verlauf</a><button className="button button-primary" type="button" onClick={() => setReportSession(null)}>Neue A1-Session vorbereiten</button></div>
-            </section>
-          ) : null}
+          ) : (
+            <>
+              <section className="stats-grid" aria-label="Live-Statistik A2"><article className="stat-card"><span>Drucksituationen</span><strong>{stats.count}</strong></article><article className="stat-card"><span>Häufigstes Druckniveau</span><strong>{stats.mostCommonLevel}</strong></article><article className="stat-card"><span>Gut gelöst</span><strong>{stats.goodRate}%</strong></article></section>
+              <section className="session-log" aria-labelledby="log-title"><div className="section-heading compact-heading"><p className="eyebrow">Session-Log</p><h2 id="log-title">Gespeicherte A2-Beobachtungen</h2></div>{a2Observations.length ? <div className="log-list">{a2Observations.map((item) => <article className={item.isInteresting ? "log-item interesting" : "log-item"} key={item.id}><time>{item.isInteresting ? "★ " : ""}{item.matchTime || item.time}</time><p>Druck: {item.pressureLevel ?? "-"}</p><p>Richtung: {item.pressureDirection ?? "-"}</p><p>Zeitfenster: {item.timeWindow ?? "-"}</p><p>Lösung: {item.solutionQuality ?? "-"}</p><p>Ergebnis: {item.outcome}</p><div className="log-actions"><button type="button" onClick={() => startEditingObservation(item)} disabled={isSaving}>Bearbeiten</button><button type="button" onClick={() => deleteObservation(item)} disabled={isSaving}>Löschen</button></div></article>)}</div> : <p className="empty-state">Noch keine A2-Beobachtungen gespeichert.</p>}</section>
+            </>
+          )}
         </div>
+
+        {!activeSession ? <aside className="observation-flow" aria-labelledby="flow-title"><details className="flow-help-details" open><summary><span className="eyebrow">Permanente Hilfe</span><h2 id="flow-title">Beobachtungsablauf</h2></summary><ol><li>Spieler erhält den Ball.</li><li>Gegnerdruck einschätzen.</li><li>Druckrichtung erkennen.</li><li>Zeitfenster bewerten.</li><li>Entscheidung und Ergebnis einordnen.</li></ol></details></aside> : null}
       </div>
     </main>
   );
 }
-function ChoiceGroup<T extends string>({ label, help, options, value, onChange }: { label: string; help?: string; options: T[]; value: T; onChange: (value: T) => void }) {
-  return <fieldset className="choice-group"><legend>{label}</legend>{help ? <p className="choice-help">{help}</p> : null}<div>{options.map((option) => <button className={option === value ? "choice active" : "choice"} key={option} type="button" onClick={() => onChange(option)}>{option}</button>)}</div></fieldset>;
-}
-
 
 function TeamAutocomplete({ fieldId, label, value, onChange, matches, suggestion, isValid, isOpen, onFocus, onBlur }: { fieldId: string; label: string; value: string; onChange: (value: string) => void; matches: string[]; suggestion: string; isValid: boolean; isOpen: boolean; onFocus: () => void; onBlur: () => void }) {
   const completionHint = value && suggestion && suggestion !== value ? suggestion : "";
@@ -737,4 +738,8 @@ function TeamAutocomplete({ fieldId, label, value, onChange, matches, suggestion
       {value && !isValid ? <small className="field-error">Bitte ein Team aus der Liste auswählen.</small> : null}
     </label>
   );
+}
+
+function ChoiceGroup<T extends string>({ label, help, options, value, onChange, explanations }: { label: string; help?: string; options: T[]; value: T; onChange: (value: T) => void; explanations?: Record<T, string> }) {
+  return <fieldset className="choice-group"><legend>{label}</legend>{help ? <p className="choice-help">{help}</p> : null}<div>{options.map((option) => <button className={option === value ? "choice active" : "choice"} key={option} type="button" onClick={() => onChange(option)}>{option}</button>)}</div>{explanations ? <div className="category-help-grid" aria-label={`${label} erklärt`}>{options.map((option) => <article className={option === value ? "category-help active" : "category-help"} key={option}><h3>{option}</h3><p>{explanations[option]}</p></article>)}</div> : null}</fieldset>;
 }
